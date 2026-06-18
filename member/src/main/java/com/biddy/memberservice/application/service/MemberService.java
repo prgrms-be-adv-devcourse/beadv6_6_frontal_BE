@@ -2,7 +2,7 @@ package com.biddy.memberservice.application.service;
 
 import com.biddy.memberservice.application.dto.response.MemberResponse;
 import com.biddy.memberservice.domain.model.Member;
-import com.biddy.memberservice.domain.model.WithdrawalRequest;
+import com.biddy.memberservice.domain.model.Withdrawal;
 import com.biddy.memberservice.domain.repository.MemberRepository;
 import com.biddy.memberservice.domain.repository.WithdrawalRequestRepository;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +53,6 @@ public class MemberService{
                 .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
         member.withdraw();
         memberRepository.save(member);
-        withdrawalRequestRepository.save(WithdrawalRequest.create(memberId));
+        withdrawalRequestRepository.save(Withdrawal.create(memberId));
     }
 }

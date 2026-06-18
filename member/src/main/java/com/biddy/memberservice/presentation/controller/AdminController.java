@@ -2,14 +2,12 @@ package com.biddy.memberservice.presentation.controller;
 
 import com.biddy.memberservice.application.dto.response.AdminMemberResponse;
 import com.biddy.memberservice.application.service.AdminService;
-import com.biddy.memberservice.domain.model.WithdrawalRequest;
+import com.biddy.memberservice.domain.model.Withdrawal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -26,7 +24,7 @@ public class AdminController {
 
     // 탈퇴 조회
     @GetMapping("/withdrawals")
-    public ResponseEntity<List<WithdrawalRequest>> getPendingWithdrawals() {
+    public ResponseEntity<List<Withdrawal>> getPendingWithdrawals() {
         return ResponseEntity.ok(adminService.getPendingWithdrawals());
     }
 
@@ -37,18 +35,21 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
-    // 예치금 수정
-    @PatchMapping("/members/{memberId}/balance")
-    public ResponseEntity<Void> updateBalance(@PathVariable Long memberId,
-                                              @RequestBody Map<String, BigDecimal> body) {
-        adminService.updateBalance(memberId, body.get("amount"));
-        return ResponseEntity.ok().build();
-    }
-
     // 회원 추방
     @PostMapping("/members/{memberId}/ban")
     public ResponseEntity<Void> banMember(@PathVariable Long memberId) {
         adminService.banMember(memberId);
         return ResponseEntity.ok().build();
+    }
+
+    // 예치금 강제 조정
+    @PostMapping("/{memberId}/balance")
+    public ResponseEntity<String> modifyMemberBalance(
+            @PathVariable Long memberId,
+            @RequestParam Long amount, // 5000 입력시 증액, -5000 입력시 차감
+            @RequestParam String reason
+    ) {
+        adminService.adjustMemberBalanceForce(memberId, amount, reason);
+        return ResponseEntity.ok("예치금 조정 요청 카프카 발행 완료: memberId=" + memberId + ", amount=" + amount);
     }
 }

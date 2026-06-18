@@ -76,6 +76,7 @@ services:
     environment:
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery:8761/eureka/
       SPRING_CLOUD_CONFIG_URI: http://config:8888
+      JWT_SECRET: ${JWT_SECRET}
 
   # ==================== 비즈니스 도메인 ====================
 
@@ -99,6 +100,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
 
   product:
     build: ./product

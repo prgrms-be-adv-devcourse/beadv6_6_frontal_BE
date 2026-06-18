@@ -3,17 +3,20 @@ package com.biddy.memberservice.application.service;
 import com.biddy.memberservice.application.dto.request.LoginRequest;
 import com.biddy.memberservice.application.dto.request.SignupRequest;
 import com.biddy.memberservice.application.dto.response.TokenResponse;
+import com.biddy.memberservice.application.event.MemberSignupEvent;
 import com.biddy.memberservice.domain.enums.MemberStatus;
-import com.biddy.memberservice.domain.model.Balance;
 import com.biddy.memberservice.domain.model.EmailVerification;
 import com.biddy.memberservice.domain.model.Member;
 import com.biddy.memberservice.domain.model.RefreshToken;
-import com.biddy.memberservice.domain.repository.BalanceRepository;
 import com.biddy.memberservice.domain.repository.EmailVerificationRepository;
 import com.biddy.memberservice.domain.repository.MemberRepository;
 import com.biddy.memberservice.domain.repository.RefreshTokenRepository;
 import com.biddy.memberservice.infrastructure.security.JwtTokenProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,10 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class AuthService{
+public class AuthService {
 
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -33,9 +37,11 @@ public class AuthService{
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
-    private final BalanceRepository balanceRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;  // ← 추가
+    private final ObjectMapper objectMapper;  // ← 추가
 
     @Transactional
+    @SneakyThrows
     public void signup(SignupRequest request) {
         boolean verified = emailVerificationRepository
                 .existsByEmailAndVerifiedAtIsNotNull(request.getEmail());
@@ -59,7 +65,11 @@ public class AuthService{
                 request.getPhone()
         );
         Member savedMember = memberRepository.save(member);
-        balanceRepository.save(Balance.create(savedMember));
+
+        // payment-service에 회원가입 알림 → balance 생성 요청
+        MemberSignupEvent event = new MemberSignupEvent(savedMember.getId());
+        kafkaTemplate.send("member-signup", objectMapper.writeValueAsString(event));
+        log.info("Kafka 이벤트 발행: topic=member-signup, memberId={}", savedMember.getId());
     }
 
     @Transactional

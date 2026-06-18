@@ -1,7 +1,7 @@
 package com.biddy.memberservice.infrastructure.persistence.auth;
 
 import com.biddy.memberservice.domain.enums.WithdrawalStatus;
-import com.biddy.memberservice.domain.model.WithdrawalRequest;
+import com.biddy.memberservice.domain.model.Withdrawal;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -32,8 +32,8 @@ public class WithdrawalRequestJpaEntity {
 
     private LocalDateTime approvedAt;
 
-    public WithdrawalRequest toDomain() {
-        return WithdrawalRequest.builder()
+    public Withdrawal toDomain() {
+        return Withdrawal.builder()
                 .id(this.id)
                 .memberId(this.memberId)
                 .status(this.status)
@@ -42,7 +42,7 @@ public class WithdrawalRequestJpaEntity {
                 .build();
     }
 
-    public static WithdrawalRequestJpaEntity from(WithdrawalRequest wr) {
+    public static WithdrawalRequestJpaEntity from(Withdrawal wr) {
         WithdrawalRequestJpaEntity e = new WithdrawalRequestJpaEntity();
         e.id = wr.getId();
         e.memberId = wr.getMemberId();

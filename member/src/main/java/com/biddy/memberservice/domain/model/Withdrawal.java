@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class WithdrawalRequest {
+public class Withdrawal {
 
     private Long id;
     private Long memberId;
@@ -17,8 +17,8 @@ public class WithdrawalRequest {
     private LocalDateTime requestedAt;
     private LocalDateTime approvedAt;
 
-    public static WithdrawalRequest create(Long memberId) {
-        return WithdrawalRequest.builder()
+    public static Withdrawal create(Long memberId) {
+        return Withdrawal.builder()
                 .memberId(memberId)
                 .status(WithdrawalStatus.PENDING)
                 .build();
