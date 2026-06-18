@@ -3,6 +3,8 @@ package com.biddy.payment.wallet.application;
 import com.biddy.payment.wallet.domain.DepositAccount;
 import com.biddy.payment.wallet.domain.DepositTransaction;
 import com.biddy.payment.wallet.domain.DepositTransactionType;
+import com.biddy.payment.wallet.infrastructure.client.toss.TossPaymentClient;
+import com.biddy.payment.wallet.infrastructure.client.toss.TossPaymentConfirmResponse;
 import com.biddy.payment.wallet.presentation.request.DepositAdjustRequest;
 import com.biddy.payment.wallet.presentation.response.DepositBalanceResponse;
 import com.biddy.payment.wallet.presentation.request.DepositChargeRequest;
@@ -11,21 +13,27 @@ import com.biddy.payment.wallet.presentation.request.DepositWithdrawRequest;
 import com.biddy.payment.wallet.infrastructure.persistence.DepositAccountRepository;
 import com.biddy.payment.wallet.infrastructure.persistence.DepositTransactionRepository;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DepositService {
 
+    private static final String TOSS_PAYMENT_REFERENCE_TYPE = "TOSS_PAYMENT";
+
     private final DepositAccountRepository accountRepository;
     private final DepositTransactionRepository transactionRepository;
+    private final TossPaymentClient tossPaymentClient;
 
     public DepositService(
             DepositAccountRepository accountRepository,
-            DepositTransactionRepository transactionRepository
+            DepositTransactionRepository transactionRepository,
+            TossPaymentClient tossPaymentClient
     ) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
+        this.tossPaymentClient = tossPaymentClient;
     }
 
     @Transactional(readOnly = true)
@@ -44,9 +52,27 @@ public class DepositService {
 
     @Transactional
     public DepositBalanceResponse charge(DepositChargeRequest request) {
+        DepositBalanceResponse duplicated = findDuplicatedCharge(request);
+        if (duplicated != null) {
+            return duplicated;
+        }
+
+        TossPaymentConfirmResponse confirmResponse = tossPaymentClient.confirm(
+                request.paymentKey(),
+                request.orderId(),
+                request.amount()
+        );
+        validateTossConfirmResponse(request, confirmResponse);
+
         DepositAccount account = getOrCreateWithLock(request.userId());
+
+        duplicated = findDuplicatedCharge(request);
+        if (duplicated != null) {
+            return duplicated;
+        }
+
         account.increase(request.amount());
-        record(account, DepositTransactionType.CHARGE, request.amount(), "DEPOSIT_CHARGE", request.paymentKey(), "예치금 충전");
+        record(account, DepositTransactionType.CHARGE, request.amount(), TOSS_PAYMENT_REFERENCE_TYPE, request.paymentKey(), "Toss Payments 예치금 충전");
         return DepositBalanceResponse.from(account);
     }
 
@@ -93,6 +119,35 @@ public class DepositService {
     private DepositAccount getOrCreateWithLock(Long userId) {
         return accountRepository.findWithLockByUserId(userId)
                 .orElseGet(() -> accountRepository.save(DepositAccount.open(userId)));
+    }
+
+    private DepositBalanceResponse findDuplicatedCharge(DepositChargeRequest request) {
+        return transactionRepository.findByReferenceTypeAndReferenceId(TOSS_PAYMENT_REFERENCE_TYPE, request.paymentKey())
+                .map(transaction -> {
+                    if (!Objects.equals(transaction.getUserId(), request.userId())) {
+                        throw new IllegalStateException("이미 다른 사용자에게 처리된 paymentKey입니다.");
+                    }
+                    return getBalance(request.userId());
+                })
+                .orElse(null);
+    }
+
+    private void validateTossConfirmResponse(
+            DepositChargeRequest request,
+            TossPaymentConfirmResponse response
+    ) {
+        if (response == null || !response.isDone()) {
+            throw new IllegalStateException("Toss Payments 결제 승인에 실패했습니다.");
+        }
+        if (!Objects.equals(response.paymentKey(), request.paymentKey())) {
+            throw new IllegalStateException("Toss Payments paymentKey가 요청과 일치하지 않습니다.");
+        }
+        if (!Objects.equals(response.orderId(), request.orderId())) {
+            throw new IllegalStateException("Toss Payments orderId가 요청과 일치하지 않습니다.");
+        }
+        if (!Objects.equals(response.totalAmount(), request.amount())) {
+            throw new IllegalStateException("Toss Payments 승인 금액이 요청 금액과 일치하지 않습니다.");
+        }
     }
 
     private void record(
