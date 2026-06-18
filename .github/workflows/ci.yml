@@ -29,13 +29,13 @@ name: CI Pipeline
 # ---------------------------------------------------------------------------
 on:
   push:
-    branches: [ main, master ]
+    branches: [ develop, main, master ]
     paths-ignore:
       - 'docs/**'
       - '*.md'
       - '.gitignore'
   pull_request:
-    branches: [ main, master ]
+    branches: [ develop, main, master ]
     paths-ignore:
       - 'docs/**'
       - '*.md'
