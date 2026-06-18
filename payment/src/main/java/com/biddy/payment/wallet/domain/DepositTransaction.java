@@ -34,7 +34,7 @@ public class DepositTransaction {
     @Column(nullable = false, length = 80)
     private String referenceType;
 
-    @Column(length = 80)
+    @Column(length = 255)
     private String referenceId;
 
     @Column(length = 255)
