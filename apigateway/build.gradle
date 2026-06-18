@@ -32,7 +32,10 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-config'    // config
     implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap' // config
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'        // logstash logback
-    implementation 'io.jsonwebtoken:jjwt:0.12.3'
+    // implementation 'io.jsonwebtoken:jjwt:0.12.3'  변경
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
     implementation 'javax.xml.bind:jaxb-api:2.3.1'
 
     implementation 'org.springdoc:springdoc-openapi-webflux-ui:1.7.0'
