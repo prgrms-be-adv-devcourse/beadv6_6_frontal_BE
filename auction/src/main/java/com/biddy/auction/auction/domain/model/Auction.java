@@ -1,5 +1,6 @@
 package com.biddy.auction.auction.domain.model;
 
+import com.biddy.auction.common.domain.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,7 +13,10 @@ import java.time.LocalDateTime;
  * 상품 정보(name, brand, edition 등)는 MSA 간 동기화 비용을 줄이기 위해
  * 경매 생성 시점에 비정규화하여 보관한다.</p>
  *
+ * <p>{@code BaseEntity}를 상속받아 createdAt, updatedAt을 자동 관리한다.</p>
+ *
  * @see AuctionStatus 경매 상태 (LIVE, ENDED)
+ * @see BaseEntity 공통 Auditing 필드
  */
 @Entity
 @Table(name = "auction")
@@ -20,7 +24,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class Auction {
+public class Auction extends BaseEntity {
 
     @Id
     @Column(name = "auction_id", length = 20)
@@ -86,20 +90,44 @@ public class Auction {
     @Column(name = "ends_at", nullable = false)
     private LocalDateTime endsAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+    /** 경매가 현재 진행 중인지 확인한다. */
+    public boolean isLive() {
+        return this.status == AuctionStatus.LIVE;
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+    /**
+     * 입찰을 적용한다.
+     * 현재가와 입찰 수를 갱신한다.
+     *
+     * @param bidAmount 입찰 금액
+     */
+    public void applyBid(Long bidAmount) {
+        this.currentBid = bidAmount;
+        this.bidCount++;
+    }
+
+    /**
+     * 경매를 종료한다.
+     * 상태를 ENDED로 변경한다.
+     */
+    public void close() {
+        this.status = AuctionStatus.ENDED;
+    }
+
+    /** 입찰 내역이 존재하는지 확인한다. */
+    public boolean hasBids() {
+        return this.bidCount > 0;
+    }
+
+    /** 관심 등록 수를 1 증가시킨다. */
+    public void incrementWatcherCount() {
+        this.watcherCount++;
+    }
+
+    /** 관심 등록 수를 1 감소시킨다 (0 미만 방지). */
+    public void decrementWatcherCount() {
+        if (this.watcherCount > 0) {
+            this.watcherCount--;
+        }
     }
 }

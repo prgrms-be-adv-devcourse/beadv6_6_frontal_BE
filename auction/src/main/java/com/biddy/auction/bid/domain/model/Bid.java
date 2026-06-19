@@ -12,6 +12,9 @@ import java.time.LocalDateTime;
  * Auction 엔티티와는 auctionId로 느슨하게 연관되며,
  * JPA 연관관계(@ManyToOne) 대신 ID 참조 방식을 사용하여 도메인 간 결합도를 낮춘다.</p>
  *
+ * <p>Bid는 생성 후 변경되지 않는 불변 기록이므로
+ * BaseEntity(updatedAt)를 상속하지 않고 bidAt만 관리한다.</p>
+ *
  * <p>인덱스:
  * <ul>
  *   <li>{@code idx_bid_auction_bid_at} — 입찰 내역 최신순 조회용</li>
@@ -46,6 +49,7 @@ public class Bid {
     @Column(name = "amount", nullable = false)
     private Long amount;
 
+    /** 입찰 시각 (생성 시 자동 설정) */
     @Column(name = "bid_at", nullable = false)
     private LocalDateTime bidAt;
 
