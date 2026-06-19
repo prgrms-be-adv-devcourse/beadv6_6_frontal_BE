@@ -1,5 +1,7 @@
 package com.biddy.auction.bid.application.service;
 
+import com.biddy.auction.auction.domain.repository.AuctionRepository;
+import com.biddy.auction.auction.infra.websocket.AuctionWebSocketPublisher;
 import com.biddy.auction.bid.application.dto.BidHistoryQuery;
 import com.biddy.auction.bid.application.dto.BidHistoryResult;
 import com.biddy.auction.bid.domain.model.Bid;
@@ -29,6 +31,12 @@ class BidServiceTest {
 
     @Mock
     private BidRepository bidRepository;
+
+    @Mock
+    private AuctionRepository auctionRepository;
+
+    @Mock
+    private AuctionWebSocketPublisher webSocketPublisher;
 
     @InjectMocks
     private BidService bidService;
