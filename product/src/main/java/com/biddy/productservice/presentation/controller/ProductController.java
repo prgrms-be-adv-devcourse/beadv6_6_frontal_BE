@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +35,7 @@ public class ProductController {
             content = @Content(schema = @Schema(implementation = Product.class))),
             @ApiResponse(responseCode="400",description="요청 오류")
     })
-    public ResponseEntity<Product> create(@RequestBody ProductCreateRequest request){
+    public ResponseEntity<Product> create(@Valid @RequestBody ProductCreateRequest request){
         Product response = productCommandUseCase.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -46,7 +47,7 @@ public class ProductController {
                     content = @Content(schema = @Schema(implementation = Product.class))),
             @ApiResponse(responseCode="404",description="상품 없음")
     })
-    public Product update(@PathVariable UUID id, @RequestBody ProductUpdateRequest request){
+    public Product update(@PathVariable UUID id, @Valid @RequestBody ProductUpdateRequest request){
         return productCommandUseCase.update(id,request);
     }
 

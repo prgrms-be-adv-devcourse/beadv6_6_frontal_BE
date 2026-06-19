@@ -27,6 +27,9 @@ public record ProductUpdateRequest(
         @Schema(description = "카테고리",example = "중고 한정판 굿즈")
         String category,
 
+        @Schema(description = "상표",example = "나이키")
+        String brand,
+
         @Schema(description = "수정자 Id",example = "33333333-3333-3333-3333-333333333333")
         UUID modifierId
 ) {

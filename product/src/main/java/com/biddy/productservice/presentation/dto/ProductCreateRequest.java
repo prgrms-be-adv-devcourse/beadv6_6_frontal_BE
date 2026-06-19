@@ -1,6 +1,8 @@
 package com.biddy.productservice.presentation.dto;
 
+import com.biddy.productservice.domain.model.SaleType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -27,6 +29,13 @@ public record ProductCreateRequest(
 
         @Schema(description = "카테고리",example = "중고 한정판 굿즈")
         String category,
+
+        @Schema(description = "판매 유형",example = "NORMAL")
+        @NotNull(message = "판매 유형 설정은 필수입니다.")
+        SaleType saleType,
+
+        @Schema(description = "브랜드",example = "나이키")
+        String brand,
 
         @Schema(description = "등록자 Id",example = "33333333-3333-3333-3333-333333333333")
         UUID creatorId
