@@ -1,6 +1,7 @@
 server:
   port: 8082
-
+api:
+  init: /api/v1
 spring:
   application:
     name: product-service
