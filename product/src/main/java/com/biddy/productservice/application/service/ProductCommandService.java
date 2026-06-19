@@ -25,7 +25,8 @@ public class ProductCommandService implements ProductCommandUseCase {
     @Override
     public Product create(ProductCreateRequest request){
         Product product = Product.create(request.sellerId(),request.name(),request.description(),
-                request.price(),request.stock(),request.status(),request.category(),request.creatorId());
+                request.price(),request.stock(),request.status(),request.category(),
+                request.saleType(),request.brand(),request.creatorId());
 
         Product savedProduct = productRepository.save(product);
         return savedProduct;
@@ -38,7 +39,7 @@ public class ProductCommandService implements ProductCommandUseCase {
                 .orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND,"상품을 찾을 수 없습니다."));
 
         product.update(request.name(),request.description(),request.price(),request.stock(),
-                request.status(),request.category(),request.modifierId());
+                request.status(),request.category(),request.brand(),request.modifierId());
         return productRepository.save(product);
     }
     @Override

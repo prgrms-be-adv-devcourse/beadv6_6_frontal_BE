@@ -43,6 +43,15 @@ public class Product {
     @Schema(description = "상품 카테고리",example = "한정판 굿즈")
     private String category;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sale_type",nullable = false,length = 20)
+    @Schema(description = "판매 유형",example = "NORMAL")
+    private SaleType saleType;
+
+    @Column(name = "brand",length = 100)
+    @Schema(description = "브랜드",example = "나이키")
+    private String brand;
+
     @Column(name = "reg_dt",nullable = false)
     @Schema(description = "등록일시",example = "2026-06-15T18:10:00",accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime regDt;
@@ -65,7 +74,8 @@ public class Product {
 
     protected Product(){}
 
-    private Product(UUID id, UUID sellerId, String name, String description, BigDecimal price, int stock, String status, String category) {
+    private Product(UUID id, UUID sellerId, String name, String description, BigDecimal price, int stock, String status, String category,
+                    SaleType saleType, String brand) {
         this.id = id;
         this.sellerId = sellerId;
         this.name = name;
@@ -74,27 +84,31 @@ public class Product {
         this.stock = stock;
         this.status = status;
         this.category = category;
+        this.saleType = saleType;
+        this.brand = brand;
     }
 
     // Id는 randomUUID로 내부 생성
     public static Product create(UUID sellerId, String name, String description, BigDecimal price,
-                                 int stock, String status, String category, UUID creatorId)
+                                 int stock, String status, String category,
+                                 SaleType saleType, String brand, UUID creatorId)
     {
         Product product = new Product(UUID.randomUUID(),sellerId,name,description,price,
-                stock,status,category);
+                stock,status,category,saleType,brand);
         product.regId = creatorId;
         product.modifyId = creatorId;
         return product;
     }
 
     public void update(String name, String description, BigDecimal price, int stock, String status,
-                       String category, UUID modifyId){
+                       String category, String brand,UUID modifyId){
         this.name = name;
         this.description = description;
         this.price = price;
         this.stock = stock;
         this.status = status;
         this.category = category;
+        this.brand = brand;
         this.modifyId = modifyId;
     }
     @PrePersist
