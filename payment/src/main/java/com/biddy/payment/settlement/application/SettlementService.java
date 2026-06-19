@@ -4,6 +4,7 @@ import com.biddy.payment.wallet.application.DepositService;
 import com.biddy.payment.payment.domain.event.PaymentCompletedEvent;
 import com.biddy.payment.settlement.domain.Settlement;
 import com.biddy.payment.settlement.domain.SettlementItem;
+import com.biddy.payment.settlement.domain.SettlementStatus;
 import com.biddy.payment.settlement.presentation.request.MonthlySettlementItemRequest;
 import com.biddy.payment.settlement.presentation.request.MonthlySettlementRequest;
 import com.biddy.payment.settlement.presentation.response.SettlementItemResponse;
@@ -98,6 +99,23 @@ public class SettlementService {
     public void cancelPendingSettlement(Long orderId) {
         settlementRepository.findByOrderId(orderId)
                 .ifPresent(Settlement::cancel);
+    }
+
+    @Transactional
+    public void completeByOrderId(Long orderId) {
+        Settlement settlement = settlementRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("주문 정산을 찾을 수 없습니다. orderId=" + orderId));
+
+        if (settlement.getStatus() == SettlementStatus.COMPLETED) {
+            return;
+        }
+
+        settlement.complete();
+        depositService.increaseForSettlement(
+                settlement.getUserId(),
+                settlement.getSettlementAmount(),
+                String.valueOf(settlement.getId())
+        );
     }
 
     private SettlementResponse createSellerSettlement(
