@@ -25,9 +25,10 @@ public class OrderClient {
                 .body(OrderPaymentInfo.class);
     }
 
-    public void requestPaymentProcessing(Long orderId) {
+    public void requestPaymentProcessing(Long orderId, Long buyerId) {
         restClient.patch()
                 .uri("/api/orders/{orderId}/payment-processing", orderId)
+                .body(new OrderPaymentProcessingRequest(buyerId))
                 .retrieve()
                 .toBodilessEntity();
     }
