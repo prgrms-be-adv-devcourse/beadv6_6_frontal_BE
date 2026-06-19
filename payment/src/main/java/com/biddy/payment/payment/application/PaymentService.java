@@ -19,9 +19,12 @@ import com.biddy.payment.payment.presentation.response.PaymentCancelResponse;
 import com.biddy.payment.payment.presentation.response.PaymentResponse;
 import com.biddy.payment.payment.infrastructure.persistence.PaymentCancelRepository;
 import com.biddy.payment.payment.infrastructure.persistence.PaymentRepository;
+import com.biddy.payment.wallet.infrastructure.client.toss.TossPaymentClient;
+import com.biddy.payment.wallet.infrastructure.client.toss.TossPaymentConfirmResponse;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,19 +37,22 @@ public class PaymentService {
     private final DepositService depositService;
     private final OrderClient orderClient;
     private final PaymentEventProducer paymentEventProducer;
+    private final TossPaymentClient tossPaymentClient;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             PaymentCancelRepository paymentCancelRepository,
             DepositService depositService,
             OrderClient orderClient,
-            PaymentEventProducer paymentEventProducer
+            PaymentEventProducer paymentEventProducer,
+            TossPaymentClient tossPaymentClient
     ) {
         this.paymentRepository = paymentRepository;
         this.paymentCancelRepository = paymentCancelRepository;
         this.depositService = depositService;
         this.orderClient = orderClient;
         this.paymentEventProducer = paymentEventProducer;
+        this.tossPaymentClient = tossPaymentClient;
     }
 
     @Transactional
@@ -74,9 +80,7 @@ public class PaymentService {
                 depositService.decreaseForPayment(order.buyerId(), order.amount(), String.valueOf(payment.getId()));
             }
 
-            String pgTransactionId = request.pgTransactionId() != null
-                    ? request.pgTransactionId()
-                    : "mock-" + payment.getId();
+            String pgTransactionId = resolvePgTransactionId(request, order);
             payment.complete(pgTransactionId);
             paymentEventProducer.publish(new PaymentCompletedEvent(
                     UUID.randomUUID(),
@@ -180,6 +184,55 @@ public class PaymentService {
         if (order.isExpired(LocalDateTime.now())) {
             throw new IllegalStateException("결제 제한 시간이 만료되었습니다.");
         }
+    }
+
+    private String resolvePgTransactionId(PaymentCreateRequest request, OrderPaymentInfo order) {
+        if (request.paymentMethod() == PaymentMethod.NORMAL) {
+            validateNormalPaymentRequest(request);
+            TossPaymentConfirmResponse confirmResponse = tossPaymentClient.confirm(
+                    request.paymentKey(),
+                    request.tossOrderId(),
+                    order.amount()
+            );
+            validateTossConfirmResponse(request, order, confirmResponse);
+            return confirmResponse.paymentKey();
+        }
+
+        return request.pgTransactionId() != null
+                ? request.pgTransactionId()
+                : "wallet-" + order.orderId();
+    }
+
+    private void validateNormalPaymentRequest(PaymentCreateRequest request) {
+        if (isBlank(request.paymentKey())) {
+            throw new IllegalArgumentException("일반 결제는 Toss paymentKey가 필요합니다.");
+        }
+        if (isBlank(request.tossOrderId())) {
+            throw new IllegalArgumentException("일반 결제는 Toss orderId가 필요합니다.");
+        }
+    }
+
+    private void validateTossConfirmResponse(
+            PaymentCreateRequest request,
+            OrderPaymentInfo order,
+            TossPaymentConfirmResponse response
+    ) {
+        if (response == null || !response.isDone()) {
+            throw new IllegalStateException("Toss Payments 결제 승인에 실패했습니다.");
+        }
+        if (!Objects.equals(response.paymentKey(), request.paymentKey())) {
+            throw new IllegalStateException("Toss Payments paymentKey가 요청과 일치하지 않습니다.");
+        }
+        if (!Objects.equals(response.orderId(), request.tossOrderId())) {
+            throw new IllegalStateException("Toss Payments orderId가 요청과 일치하지 않습니다.");
+        }
+        if (!Objects.equals(response.totalAmount(), order.amount())) {
+            throw new IllegalStateException("Toss Payments 승인 금액이 주문 금액과 일치하지 않습니다.");
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private Payment findPayment(Long id) {

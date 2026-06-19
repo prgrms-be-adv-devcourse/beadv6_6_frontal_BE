@@ -15,6 +15,8 @@ import com.biddy.payment.payment.infrastructure.kafka.producer.PaymentEventProdu
 import com.biddy.payment.payment.presentation.request.PaymentCreateRequest;
 import com.biddy.payment.payment.presentation.response.PaymentResponse;
 import com.biddy.payment.wallet.application.DepositService;
+import com.biddy.payment.wallet.infrastructure.client.toss.TossPaymentClient;
+import com.biddy.payment.wallet.infrastructure.client.toss.TossPaymentConfirmResponse;
 import com.biddy.payment.wallet.presentation.request.DepositAdjustRequest;
 import com.biddy.payment.wallet.presentation.response.DepositBalanceResponse;
 import java.time.LocalDateTime;
@@ -39,6 +41,9 @@ class PaymentServiceTest {
     @MockBean
     private PaymentEventProducer paymentEventProducer;
 
+    @MockBean
+    private TossPaymentClient tossPaymentClient;
+
     @Test
     void walletPayment_decreasesDepositAndPublishesCompletedEvent() {
         Long orderId = 100L;
@@ -61,6 +66,8 @@ class PaymentServiceTest {
                 buyerId,
                 amount,
                 PaymentMethod.WALLET,
+                null,
+                null,
                 null
         ));
 
@@ -81,6 +88,56 @@ class PaymentServiceTest {
         assertThat(event.sellerId()).isEqualTo(sellerId);
         assertThat(event.amount()).isEqualTo(amount);
         assertThat(event.paymentMethod()).isEqualTo(PaymentMethod.WALLET);
+        assertThat(event.paidAt()).isNotNull();
+    }
+
+    @Test
+    void normalPayment_confirmsTossPaymentAndPublishesCompletedEvent() {
+        Long orderId = 200L;
+        Long buyerId = 3L;
+        Long sellerId = 4L;
+        Long amount = 70_000L;
+        String paymentKey = "payment-key-200";
+        String tossOrderId = "toss-order-200";
+
+        when(orderClient.getPaymentInfo(orderId)).thenReturn(new OrderPaymentInfo(
+                orderId,
+                buyerId,
+                sellerId,
+                amount,
+                OrderPaymentStatus.PAYMENT_PENDING,
+                LocalDateTime.now().plusMinutes(10)
+        ));
+        when(tossPaymentClient.confirm(paymentKey, tossOrderId, amount))
+                .thenReturn(new TossPaymentConfirmResponse(paymentKey, tossOrderId, "DONE", amount));
+
+        PaymentResponse response = paymentService.create(new PaymentCreateRequest(
+                orderId,
+                buyerId,
+                amount,
+                PaymentMethod.NORMAL,
+                null,
+                paymentKey,
+                tossOrderId
+        ));
+
+        assertThat(response.status()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(response.pgTransactionId()).isEqualTo(paymentKey);
+
+        verify(orderClient).requestPaymentProcessing(eq(orderId), eq(buyerId));
+        verify(tossPaymentClient).confirm(eq(paymentKey), eq(tossOrderId), eq(amount));
+
+        ArgumentCaptor<PaymentCompletedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCompletedEvent.class);
+        verify(paymentEventProducer).publish(eventCaptor.capture());
+        PaymentCompletedEvent event = eventCaptor.getValue();
+
+        assertThat(event.eventId()).isNotNull();
+        assertThat(event.paymentId()).isEqualTo(response.id());
+        assertThat(event.orderId()).isEqualTo(orderId);
+        assertThat(event.buyerId()).isEqualTo(buyerId);
+        assertThat(event.sellerId()).isEqualTo(sellerId);
+        assertThat(event.amount()).isEqualTo(amount);
+        assertThat(event.paymentMethod()).isEqualTo(PaymentMethod.NORMAL);
         assertThat(event.paidAt()).isNotNull();
     }
 }

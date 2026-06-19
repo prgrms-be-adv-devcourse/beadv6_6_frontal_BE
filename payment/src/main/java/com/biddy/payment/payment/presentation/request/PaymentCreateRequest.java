@@ -9,6 +9,8 @@ public record PaymentCreateRequest(
         @NotNull Long userId,
         @NotNull @Positive Long amount,
         @NotNull PaymentMethod paymentMethod,
-        String pgTransactionId
+        String pgTransactionId,
+        String paymentKey,
+        String tossOrderId
 ) {
 }
