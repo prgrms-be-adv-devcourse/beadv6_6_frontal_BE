@@ -22,6 +22,7 @@ import com.biddy.payment.payment.infrastructure.persistence.PaymentRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,6 +79,7 @@ public class PaymentService {
                     : "mock-" + payment.getId();
             payment.complete(pgTransactionId);
             paymentEventProducer.publish(new PaymentCompletedEvent(
+                    UUID.randomUUID(),
                     payment.getId(),
                     payment.getOrderId(),
                     payment.getUserId(),
@@ -89,6 +91,7 @@ public class PaymentService {
         } catch (RuntimeException exception) {
             payment.fail();
             paymentEventProducer.publish(new PaymentFailedEvent(
+                    UUID.randomUUID(),
                     payment.getId(),
                     payment.getOrderId(),
                     payment.getUserId(),
@@ -144,6 +147,7 @@ public class PaymentService {
             } else {
                 payment.refund();
                 paymentEventProducer.publish(new PaymentRefundedEvent(
+                        UUID.randomUUID(),
                         payment.getId(),
                         payment.getOrderId(),
                         payment.getUserId(),
