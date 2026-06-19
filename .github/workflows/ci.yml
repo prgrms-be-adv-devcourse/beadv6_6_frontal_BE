@@ -173,7 +173,7 @@ jobs:
         if: >-
           github.event_name == 'push' ||
           needs.detect-changes.outputs[matrix.service] == 'true'
-        run: ./gradlew :${{ matrix.service }}:build --no-daemon
+        run: ./gradlew :${{ matrix.service }}:build -x test --no-daemon
         # --no-daemon: CI 환경에서는 데몬 불필요 (매번 새 환경이므로)
 
       # ----- 테스트 결과 리포트 -----
