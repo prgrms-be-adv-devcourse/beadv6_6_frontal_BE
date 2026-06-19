@@ -5,13 +5,12 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Comment;
-import org.springframework.data.annotation.Id;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "\"Cart\"", schema = "public")
+@Table(name = "cart")
 @Getter
 @Comment("장바구니 엔티티")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -39,4 +38,5 @@ public class Cart {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
+
 }
