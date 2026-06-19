@@ -125,13 +125,15 @@ jobs:
 
     # 변경된 서비스만 빌드 (detect-changes의 output 활용)
     # push 이벤트(main 병합)일 때는 전체 빌드
-    if: >-
-      github.event_name == 'push' ||
-      needs.detect-changes.outputs[matrix.service] == 'true'
-
     steps:
-      # ----- 소스 체크아웃 -----
       - uses: actions/checkout@v4
+        if: >-
+          github.event_name == 'push' ||
+          needs.detect-changes.outputs[matrix.service] == 'true'
+
+    # steps:
+      # ----- 소스 체크아웃 -----
+    #  - uses: actions/checkout@v4
 
       # ----- JDK 21 설정 -----
       # Temurin(Eclipse Adoptium)은 가장 널리 쓰이는 OpenJDK 배포판
@@ -144,6 +146,9 @@ jobs:
       # ----- Gradle 캐시 -----
       # 의존성을 캐시하여 빌드 시간을 대폭 단축 (첫 빌드 ~3분 → 캐시 후 ~1분)
       - name: Cache Gradle packages
+        if: >-
+          github.event_name == 'push' ||
+          needs.detect-changes.outputs[matrix.service] == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -157,11 +162,17 @@ jobs:
 
       # ----- Gradle Wrapper 실행 권한 -----
       - name: Grant execute permission for gradlew
+        if: >-
+          github.event_name == 'push' ||
+          needs.detect-changes.outputs[matrix.service] == 'true'
         run: chmod +x ./gradlew
 
       # ----- 빌드 & 테스트 -----
       # build 태스크는 compileJava + test + jar 생성을 모두 포함
       - name: Build and Test
+        if: >-
+          github.event_name == 'push' ||
+          needs.detect-changes.outputs[matrix.service] == 'true'
         run: ./gradlew :${{ matrix.service }}:build --no-daemon
         # --no-daemon: CI 환경에서는 데몬 불필요 (매번 새 환경이므로)
 
