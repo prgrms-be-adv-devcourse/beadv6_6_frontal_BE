@@ -157,13 +157,12 @@ jobs:
 
       # ----- Gradle Wrapper 실행 권한 -----
       - name: Grant execute permission for gradlew
-        run: chmod +x ${{ matrix.service }}/gradlew
+        run: chmod +x ./gradlew
 
       # ----- 빌드 & 테스트 -----
       # build 태스크는 compileJava + test + jar 생성을 모두 포함
       - name: Build and Test
-        working-directory: ${{ matrix.service }}
-        run: ./gradlew build --no-daemon
+        run: ./gradlew :${{ matrix.service }}:build --no-daemon
         # --no-daemon: CI 환경에서는 데몬 불필요 (매번 새 환경이므로)
 
       # ----- 테스트 결과 리포트 -----

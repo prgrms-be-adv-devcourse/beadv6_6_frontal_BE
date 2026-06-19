@@ -42,14 +42,4 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
-    // 예치금 강제 조정
-    @PostMapping("/{memberId}/balance")
-    public ResponseEntity<String> modifyMemberBalance(
-            @PathVariable Long memberId,
-            @RequestParam Long amount, // 5000 입력시 증액, -5000 입력시 차감
-            @RequestParam String reason
-    ) {
-        adminService.adjustMemberBalanceForce(memberId, amount, reason);
-        return ResponseEntity.ok("예치금 조정 요청 카프카 발행 완료: memberId=" + memberId + ", amount=" + amount);
-    }
 }

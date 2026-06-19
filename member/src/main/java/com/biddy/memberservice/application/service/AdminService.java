@@ -46,31 +46,6 @@ public class AdminService {
         memberRepository.deleteById(memberId);
     }
 
-    // 예치금 강제 조정
-    @Transactional
-    public void adjustMemberBalanceForce(Long memberId, Long amount, String reason) {
-        // 존재하는 회원인지 검증
-        memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
-
-        try {
-            var event = java.util.Map.of(
-                    "memberId", memberId,
-                    "amount", amount,       // 양수면 증액, 음수면 차감
-                    "reason", reason
-            );
-            String message = objectMapper.writeValueAsString(event);
-
-            // "balance-modification" 토픽으로 전송
-            kafkaTemplate.send("balance-modification", message);
-            log.info("🎯 예치금 강제 조정 Kafka 이벤트 발행: topic=balance-modification, memberId={}, amount={}", memberId, amount);
-
-        } catch (JsonProcessingException e) {
-            log.error("예치금 조정 이벤트 직렬화 실패 - memberId: {}", memberId, e);
-            throw new RuntimeException("예치금 조정 중 알 수 없는 오류가 발생했습니다.", e);
-        }
-    }
-
     // 회원 조회
     public List<AdminMemberResponse> getAllMembers() {
         return memberRepository.findAll().stream()

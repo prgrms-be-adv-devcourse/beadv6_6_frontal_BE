@@ -1,4 +1,4 @@
-package com.biddy.memberservice.infrastructure.security;
+package com.biddy.common.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

@@ -37,7 +37,6 @@ public class Member {
                 .build();
     }
 
-    public void verifyEmail() { this.emailVerified = true; }
     public void updateNickname(String nickname) { this.nickname = nickname; }
     public void updatePassword(String encodedPassword) { this.password = encodedPassword; }
     public void withdraw() {

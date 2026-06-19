@@ -30,11 +30,6 @@ public class MemberRepositoryImpl implements MemberRepository {
     }
 
     @Override
-    public boolean existsByEmail(String email) {
-        return jpaRepository.existsByEmail(email);
-    }
-
-    @Override
     public boolean existsByNickname(String nickname) {
         return jpaRepository.existsByNickname(nickname);
     }

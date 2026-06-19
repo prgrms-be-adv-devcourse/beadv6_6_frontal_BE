@@ -1,5 +1,6 @@
 package com.biddy.memberservice.infrastructure.security;
 
+import com.biddy.common.security.HeaderAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

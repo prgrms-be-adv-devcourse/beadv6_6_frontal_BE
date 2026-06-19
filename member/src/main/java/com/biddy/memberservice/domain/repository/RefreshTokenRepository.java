@@ -2,6 +2,7 @@ package com.biddy.memberservice.domain.repository;
 
 import com.biddy.memberservice.domain.model.RefreshToken;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface RefreshTokenRepository {
@@ -10,4 +11,5 @@ public interface RefreshTokenRepository {
     Optional<RefreshToken> findByMemberId(Long memberId);
     void deleteByMemberId(Long memberId);
     void delete(RefreshToken refreshToken);
+    void deleteByExpiredAtBefore(LocalDateTime now);
 }

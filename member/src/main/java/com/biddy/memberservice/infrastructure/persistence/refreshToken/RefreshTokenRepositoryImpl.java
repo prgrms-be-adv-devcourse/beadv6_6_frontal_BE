@@ -5,6 +5,7 @@ import com.biddy.memberservice.domain.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Repository
@@ -38,5 +39,10 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
     @Override
     public void delete(RefreshToken refreshToken) {
         jpaRepository.deleteById(refreshToken.getId());
+    }
+
+    @Override
+    public void deleteByExpiredAtBefore(LocalDateTime now) {
+        jpaRepository.deleteByExpiredAtBefore(now);
     }
 }
