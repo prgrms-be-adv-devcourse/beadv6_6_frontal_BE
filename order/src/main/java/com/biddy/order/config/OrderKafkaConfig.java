@@ -1,4 +1,4 @@
-package com.biddy.order.cart.config;
+package com.biddy.order.config;
 
 import com.biddy.order.cart.application.dto.CartInfoCommand;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -19,7 +19,7 @@ import java.util.Map;
 @Configuration
 @EnableKafka
 @ConditionalOnProperty(prefix = "kafka", name = "enabled", havingValue = "true")
-public class CartKafkaConfig {
+public class OrderKafkaConfig {
     @Value("${kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
