@@ -1,11 +1,18 @@
 package com.biddy.auction.auction.application.service;
 
+import com.biddy.auction.auction.application.dto.AuctionDetailResult;
 import com.biddy.auction.auction.application.dto.AuctionFeedQuery;
 import com.biddy.auction.auction.application.dto.AuctionFeedResult;
+import com.biddy.auction.auction.application.dto.AuctionResultInfo;
 import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
+import com.biddy.auction.bid.domain.model.Bid;
+import com.biddy.auction.bid.domain.repository.BidRepository;
+import com.biddy.auction.common.exception.BusinessException;
+import com.biddy.auction.common.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -19,8 +26,10 @@ import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -30,6 +39,9 @@ class AuctionServiceTest {
 
     @Mock
     private AuctionRepository auctionRepository;
+
+    @Mock
+    private BidRepository bidRepository;
 
     @InjectMocks
     private AuctionService auctionService;
@@ -41,6 +53,8 @@ class AuctionServiceTest {
                 .name(name)
                 .brand("TestBrand")
                 .edition("TestEdition")
+                .category("sneakers")
+                .description("Test description")
                 .startPrice(100000L)
                 .minIncrement(10000L)
                 .currentBid(currentBid)
@@ -51,116 +65,241 @@ class AuctionServiceTest {
                 .build();
     }
 
-    @Test
-    @DisplayName("필터 없이 조회하면 전체 경매 피드를 반환한다")
-    void getAuctionFeed_withNoFilters_returnsAllAuctions() {
-        AuctionFeedQuery query = new AuctionFeedQuery(null, null, null, 0, 20);
-        List<Auction> auctions = List.of(
-                createAuction("A-001", "상품1", 500000L, 3),
-                createAuction("A-002", "상품2", 720000L, 6)
-        );
-        given(auctionRepository.findByFilters(eq(null), eq(null), any(Pageable.class)))
-                .willReturn(new PageImpl<>(auctions));
-
-        Page<AuctionFeedResult> result = auctionService.getAuctionFeed(query);
-
-        assertThat(result.getContent()).hasSize(2);
-        assertThat(result.getContent().get(0).auctionId()).isEqualTo("A-001");
-        assertThat(result.getContent().get(1).currentBid()).isEqualTo(720000L);
+    private Bid createBid(String auctionId, Long bidderId, Long amount) {
+        return Bid.builder()
+                .bidId(1L)
+                .auctionId(auctionId)
+                .bidderId(bidderId)
+                .amount(amount)
+                .bidAt(LocalDateTime.of(2026, 6, 18, 14, 0))
+                .build();
     }
 
-    @Test
-    @DisplayName("status=LIVE로 필터링하면 LIVE 경매만 조회한다")
-    void getAuctionFeed_withStatusFilter_filtersCorrectly() {
-        AuctionFeedQuery query = new AuctionFeedQuery(AuctionStatus.LIVE, null, null, 0, 20);
-        List<Auction> auctions = List.of(createAuction("A-001", "상품1", 500000L, 3));
-        given(auctionRepository.findByFilters(eq(AuctionStatus.LIVE), eq(null), any(Pageable.class)))
-                .willReturn(new PageImpl<>(auctions));
+    @Nested
+    @DisplayName("getAuctionFeed")
+    class GetAuctionFeed {
 
-        Page<AuctionFeedResult> result = auctionService.getAuctionFeed(query);
+        @Test
+        @DisplayName("필터 없이 조회하면 전체 경매 피드를 반환한다")
+        void withNoFilters_returnsAllAuctions() {
+            AuctionFeedQuery query = new AuctionFeedQuery(null, null, null, 0, 20);
+            List<Auction> auctions = List.of(
+                    createAuction("A-001", "상품1", 500000L, 3),
+                    createAuction("A-002", "상품2", 720000L, 6)
+            );
+            given(auctionRepository.findByFilters(eq(null), eq(null), any(Pageable.class)))
+                    .willReturn(new PageImpl<>(auctions));
 
-        assertThat(result.getContent()).hasSize(1);
+            Page<AuctionFeedResult> result = auctionService.getAuctionFeed(query);
+
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.getContent().get(0).auctionId()).isEqualTo("A-001");
+            assertThat(result.getContent().get(1).currentBid()).isEqualTo(720000L);
+        }
+
+        @Test
+        @DisplayName("status=LIVE로 필터링하면 LIVE 경매만 조회한다")
+        void withStatusFilter_filtersCorrectly() {
+            AuctionFeedQuery query = new AuctionFeedQuery(AuctionStatus.LIVE, null, null, 0, 20);
+            given(auctionRepository.findByFilters(eq(AuctionStatus.LIVE), eq(null), any(Pageable.class)))
+                    .willReturn(new PageImpl<>(List.of(createAuction("A-001", "상품1", 500000L, 3))));
+
+            Page<AuctionFeedResult> result = auctionService.getAuctionFeed(query);
+
+            assertThat(result.getContent()).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("sort=ending이면 endsAt ASC로 정렬한다")
+        void withSortEnding_sortsByEndsAtAsc() {
+            AuctionFeedQuery query = new AuctionFeedQuery(null, null, "ending", 0, 20);
+            ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+            given(auctionRepository.findByFilters(any(), any(), captor.capture()))
+                    .willReturn(Page.empty());
+
+            auctionService.getAuctionFeed(query);
+
+            Sort sort = captor.getValue().getSort();
+            assertThat(sort.getOrderFor("endsAt")).isNotNull();
+            assertThat(sort.getOrderFor("endsAt").getDirection()).isEqualTo(Sort.Direction.ASC);
+        }
+
+        @Test
+        @DisplayName("sort=price이면 currentBid DESC로 정렬한다")
+        void withSortPrice_sortsByCurrentBidDesc() {
+            AuctionFeedQuery query = new AuctionFeedQuery(null, null, "price", 0, 20);
+            ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+            given(auctionRepository.findByFilters(any(), any(), captor.capture()))
+                    .willReturn(Page.empty());
+
+            auctionService.getAuctionFeed(query);
+
+            Sort sort = captor.getValue().getSort();
+            assertThat(sort.getOrderFor("currentBid")).isNotNull();
+            assertThat(sort.getOrderFor("currentBid").getDirection()).isEqualTo(Sort.Direction.DESC);
+        }
+
+        @Test
+        @DisplayName("sort=null이면 createdAt DESC로 정렬한다")
+        void withSortNull_sortsByCreatedAtDesc() {
+            AuctionFeedQuery query = new AuctionFeedQuery(null, null, null, 0, 20);
+            ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+            given(auctionRepository.findByFilters(any(), any(), captor.capture()))
+                    .willReturn(Page.empty());
+
+            auctionService.getAuctionFeed(query);
+
+            Sort sort = captor.getValue().getSort();
+            assertThat(sort.getOrderFor("createdAt")).isNotNull();
+            assertThat(sort.getOrderFor("createdAt").getDirection()).isEqualTo(Sort.Direction.DESC);
+        }
+
+        @Test
+        @DisplayName("Auction을 AuctionFeedResult로 정확히 매핑한다")
+        void mapsAuctionToResultCorrectly() {
+            AuctionFeedQuery query = new AuctionFeedQuery(null, null, null, 0, 20);
+            Auction auction = createAuction("A-FNF97", "나이키 덩크", 720000L, 6);
+            given(auctionRepository.findByFilters(any(), any(), any(Pageable.class)))
+                    .willReturn(new PageImpl<>(List.of(auction)));
+
+            AuctionFeedResult item = auctionService.getAuctionFeed(query).getContent().get(0);
+
+            assertThat(item.auctionId()).isEqualTo("A-FNF97");
+            assertThat(item.name()).isEqualTo("나이키 덩크");
+            assertThat(item.currentBid()).isEqualTo(720000L);
+            assertThat(item.bidCount()).isEqualTo(6);
+        }
+
+        @Test
+        @DisplayName("페이지네이션 파라미터가 정확히 전달된다")
+        void passesPageParametersCorrectly() {
+            AuctionFeedQuery query = new AuctionFeedQuery(null, null, null, 2, 10);
+            ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+            given(auctionRepository.findByFilters(any(), any(), captor.capture()))
+                    .willReturn(Page.empty());
+
+            auctionService.getAuctionFeed(query);
+
+            assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
+            assertThat(captor.getValue().getPageSize()).isEqualTo(10);
+        }
     }
 
-    @Test
-    @DisplayName("sort=ending이면 endsAt ASC로 정렬한다")
-    void getAuctionFeed_withSortEnding_sortsByEndsAtAsc() {
-        AuctionFeedQuery query = new AuctionFeedQuery(null, null, "ending", 0, 20);
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        given(auctionRepository.findByFilters(any(), any(), pageableCaptor.capture()))
-                .willReturn(Page.empty());
+    @Nested
+    @DisplayName("getAuctionDetail")
+    class GetAuctionDetail {
 
-        auctionService.getAuctionFeed(query);
+        @Test
+        @DisplayName("존재하는 경매를 상세 조회하면 정상 결과를 반환한다")
+        void withExistingAuction_returnsDetail() {
+            Auction auction = createAuction("A-001", "나이키 덩크", 720000L, 6);
+            Bid topBid = createBid("A-001", 42L, 720000L);
+            given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
+            given(bidRepository.findTopByAuctionId("A-001")).willReturn(Optional.of(topBid));
 
-        Sort sort = pageableCaptor.getValue().getSort();
-        assertThat(sort.getOrderFor("endsAt")).isNotNull();
-        assertThat(sort.getOrderFor("endsAt").getDirection()).isEqualTo(Sort.Direction.ASC);
+            AuctionDetailResult result = auctionService.getAuctionDetail("A-001");
+
+            assertThat(result.auctionId()).isEqualTo("A-001");
+            assertThat(result.name()).isEqualTo("나이키 덩크");
+            assertThat(result.startPrice()).isEqualTo(100000L);
+            assertThat(result.minIncrement()).isEqualTo(10000L);
+            assertThat(result.currentBid()).isEqualTo(720000L);
+            assertThat(result.bidCount()).isEqualTo(6);
+            assertThat(result.status()).isEqualTo(AuctionStatus.LIVE);
+            assertThat(result.watcherCount()).isEqualTo(10);
+            assertThat(result.topBidder()).isNotNull();
+            assertThat(result.topBidder().collectorId()).isEqualTo(42L);
+        }
+
+        @Test
+        @DisplayName("입찰이 없는 경매를 조회하면 topBidder가 null이다")
+        void withNoBids_topBidderIsNull() {
+            Auction auction = createAuction("A-002", "상품", 0L, 0);
+            given(auctionRepository.findById("A-002")).willReturn(Optional.of(auction));
+            given(bidRepository.findTopByAuctionId("A-002")).willReturn(Optional.empty());
+
+            AuctionDetailResult result = auctionService.getAuctionDetail("A-002");
+
+            assertThat(result.topBidder()).isNull();
+            assertThat(result.isWatching()).isFalse();
+            assertThat(result.myHighestBid()).isNull();
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 경매를 조회하면 AUCTION_NOT_FOUND 예외가 발생한다")
+        void withNonExistingAuction_throwsException() {
+            given(auctionRepository.findById("INVALID")).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> auctionService.getAuctionDetail("INVALID"))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.AUCTION_NOT_FOUND);
+        }
     }
 
-    @Test
-    @DisplayName("sort=price이면 currentBid DESC로 정렬한다")
-    void getAuctionFeed_withSortPrice_sortsByCurrentBidDesc() {
-        AuctionFeedQuery query = new AuctionFeedQuery(null, null, "price", 0, 20);
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        given(auctionRepository.findByFilters(any(), any(), pageableCaptor.capture()))
-                .willReturn(Page.empty());
+    @Nested
+    @DisplayName("getAuctionResult")
+    class GetAuctionResult {
 
-        auctionService.getAuctionFeed(query);
+        private Auction createEndedAuction(String id, int bidCount) {
+            Auction auction = createAuction(id, "상품", bidCount > 0 ? 720000L : 0L, bidCount);
+            auction.close();
+            return auction;
+        }
 
-        Sort sort = pageableCaptor.getValue().getSort();
-        assertThat(sort.getOrderFor("currentBid")).isNotNull();
-        assertThat(sort.getOrderFor("currentBid").getDirection()).isEqualTo(Sort.Direction.DESC);
-    }
+        @Test
+        @DisplayName("낙찰된 경매의 결과를 조회한다")
+        void soldAuction_returnsSoldResult() {
+            Auction auction = createEndedAuction("A-001", 5);
+            Bid topBid = createBid("A-001", 42L, 720000L);
+            given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
+            given(bidRepository.findTopByAuctionId("A-001")).willReturn(Optional.of(topBid));
 
-    @Test
-    @DisplayName("sort=latest 또는 null이면 createdAt DESC로 정렬한다")
-    void getAuctionFeed_withSortLatest_sortsByCreatedAtDesc() {
-        AuctionFeedQuery query = new AuctionFeedQuery(null, null, "latest", 0, 20);
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        given(auctionRepository.findByFilters(any(), any(), pageableCaptor.capture()))
-                .willReturn(Page.empty());
+            AuctionResultInfo result = auctionService.getAuctionResult("A-001");
 
-        auctionService.getAuctionFeed(query);
+            assertThat(result.type()).isEqualTo("SOLD");
+            assertThat(result.winnerId()).isEqualTo(42L);
+            assertThat(result.finalBid()).isEqualTo(720000L);
+            assertThat(result.totalBids()).isEqualTo(5);
+            assertThat(result.paymentDeadline()).isNotNull();
+        }
 
-        Sort sort = pageableCaptor.getValue().getSort();
-        assertThat(sort.getOrderFor("createdAt")).isNotNull();
-        assertThat(sort.getOrderFor("createdAt").getDirection()).isEqualTo(Sort.Direction.DESC);
-    }
+        @Test
+        @DisplayName("유찰된 경매의 결과를 조회한다")
+        void unsoldAuction_returnsUnsoldResult() {
+            Auction auction = createEndedAuction("A-002", 0);
+            given(auctionRepository.findById("A-002")).willReturn(Optional.of(auction));
 
-    @Test
-    @DisplayName("Auction을 AuctionFeedResult로 정확히 매핑한다")
-    void getAuctionFeed_mapsAuctionToResultCorrectly() {
-        AuctionFeedQuery query = new AuctionFeedQuery(null, null, null, 0, 20);
-        Auction auction = createAuction("A-FNF97", "나이키 덩크", 720000L, 6);
-        given(auctionRepository.findByFilters(any(), any(), any(Pageable.class)))
-                .willReturn(new PageImpl<>(List.of(auction)));
+            AuctionResultInfo result = auctionService.getAuctionResult("A-002");
 
-        Page<AuctionFeedResult> result = auctionService.getAuctionFeed(query);
+            assertThat(result.type()).isEqualTo("UNSOLD");
+            assertThat(result.winnerId()).isNull();
+            assertThat(result.finalBid()).isNull();
+            assertThat(result.totalBids()).isEqualTo(0);
+            assertThat(result.paymentDeadline()).isNull();
+        }
 
-        AuctionFeedResult item = result.getContent().get(0);
-        assertThat(item.auctionId()).isEqualTo("A-FNF97");
-        assertThat(item.name()).isEqualTo("나이키 덩크");
-        assertThat(item.brand()).isEqualTo("TestBrand");
-        assertThat(item.edition()).isEqualTo("TestEdition");
-        assertThat(item.currentBid()).isEqualTo(720000L);
-        assertThat(item.bidCount()).isEqualTo(6);
-        assertThat(item.watcherCount()).isEqualTo(10);
-        assertThat(item.seller().collectorId()).isEqualTo(1L);
-        assertThat(item.seller().nickname()).isNull();
-    }
+        @Test
+        @DisplayName("LIVE 상태 경매를 조회하면 AUCTION_STILL_LIVE")
+        void liveAuction_throwsStillLive() {
+            Auction auction = createAuction("A-003", "상품", 500000L, 3);
+            given(auctionRepository.findById("A-003")).willReturn(Optional.of(auction));
 
-    @Test
-    @DisplayName("페이지네이션 파라미터가 정확히 전달된다")
-    void getAuctionFeed_passesPageParametersCorrectly() {
-        AuctionFeedQuery query = new AuctionFeedQuery(null, null, null, 2, 10);
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        given(auctionRepository.findByFilters(any(), any(), pageableCaptor.capture()))
-                .willReturn(Page.empty());
+            assertThatThrownBy(() -> auctionService.getAuctionResult("A-003"))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.AUCTION_STILL_LIVE);
+        }
 
-        auctionService.getAuctionFeed(query);
+        @Test
+        @DisplayName("존재하지 않는 경매를 조회하면 AUCTION_NOT_FOUND")
+        void notFound_throwsNotFound() {
+            given(auctionRepository.findById("A-999")).willReturn(Optional.empty());
 
-        Pageable pageable = pageableCaptor.getValue();
-        assertThat(pageable.getPageNumber()).isEqualTo(2);
-        assertThat(pageable.getPageSize()).isEqualTo(10);
+            assertThatThrownBy(() -> auctionService.getAuctionResult("A-999"))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.AUCTION_NOT_FOUND);
+        }
     }
 }

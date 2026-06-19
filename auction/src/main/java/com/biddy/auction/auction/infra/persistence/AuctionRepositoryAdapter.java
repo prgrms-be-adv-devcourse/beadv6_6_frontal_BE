@@ -8,6 +8,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 /**
  * AuctionRepository Port 구현체 (Adapter).
  *
@@ -24,5 +28,30 @@ public class AuctionRepositoryAdapter implements AuctionRepository {
     @Override
     public Page<Auction> findByFilters(AuctionStatus status, String category, Pageable pageable) {
         return auctionJpaRepository.findByFilters(status, category, pageable);
+    }
+
+    @Override
+    public Optional<Auction> findById(String auctionId) {
+        return auctionJpaRepository.findById(auctionId);
+    }
+
+    @Override
+    public Optional<Auction> findByIdForUpdate(String auctionId) {
+        return auctionJpaRepository.findByIdForUpdate(auctionId);
+    }
+
+    @Override
+    public Auction save(Auction auction) {
+        return auctionJpaRepository.save(auction);
+    }
+
+    @Override
+    public boolean existsById(String auctionId) {
+        return auctionJpaRepository.existsById(auctionId);
+    }
+
+    @Override
+    public List<Auction> findExpiredLiveAuctions(LocalDateTime now) {
+        return auctionJpaRepository.findAllByStatusAndEndsAtBefore(AuctionStatus.LIVE, now);
     }
 }
