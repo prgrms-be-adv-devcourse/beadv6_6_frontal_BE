@@ -56,7 +56,7 @@ public class PaymentService {
 
         OrderPaymentInfo order = orderClient.getPaymentInfo(request.orderId());
         validateOrderPayment(request, order);
-        orderClient.requestPaymentProcessing(order.orderId());
+        orderClient.requestPaymentProcessing(order.orderId(), order.buyerId());
 
         Payment payment = paymentRepository.save(Payment.create(
                 order.orderId(),
