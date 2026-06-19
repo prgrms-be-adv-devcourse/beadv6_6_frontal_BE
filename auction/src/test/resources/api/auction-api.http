@@ -1,0 +1,55 @@
+### ========== 경매 피드 조회 ==========
+
+### 전체 경매 피드 조회 (기본값: page=0, size=20)
+GET http://localhost:8084/api/v1/auctions
+Accept: application/json
+
+### LIVE 경매만 조회
+GET http://localhost:8084/api/v1/auctions?status=LIVE
+Accept: application/json
+
+### ENDED 경매만 조회
+GET http://localhost:8084/api/v1/auctions?status=ENDED
+Accept: application/json
+
+### 카테고리 필터
+GET http://localhost:8084/api/v1/auctions?category=sneakers
+Accept: application/json
+
+### 마감임박순 정렬
+GET http://localhost:8084/api/v1/auctions?sort=ending
+Accept: application/json
+
+### 높은 가격순 정렬
+GET http://localhost:8084/api/v1/auctions?sort=price
+Accept: application/json
+
+### 최신순 정렬
+GET http://localhost:8084/api/v1/auctions?sort=latest
+Accept: application/json
+
+### 복합 필터 (LIVE + 카테고리 + 마감임박순 + 페이지네이션)
+GET http://localhost:8084/api/v1/auctions?status=LIVE&category=sneakers&sort=ending&page=0&size=10
+Accept: application/json
+
+### 2페이지 조회
+GET http://localhost:8084/api/v1/auctions?page=1&size=5
+Accept: application/json
+
+### ========== 입찰 내역 조회 ==========
+
+### 특정 경매의 입찰 내역 조회 (최신순)
+GET http://localhost:8084/api/v1/auctions/A-FNF97/bids
+Accept: application/json
+
+### 입찰 내역 페이지네이션
+GET http://localhost:8084/api/v1/auctions/A-FNF97/bids?page=0&size=10
+Accept: application/json
+
+### 입찰 내역 2페이지
+GET http://localhost:8084/api/v1/auctions/A-FNF97/bids?page=1&size=5
+Accept: application/json
+
+### 존재하지 않는 경매의 입찰 내역 (빈 결과)
+GET http://localhost:8084/api/v1/auctions/A-NOTEXIST/bids
+Accept: application/json
