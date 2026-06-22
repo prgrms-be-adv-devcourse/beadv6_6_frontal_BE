@@ -19,14 +19,14 @@ import java.util.Optional;
 public interface AuctionRepository {
 
     /**
-     * 상태 및 카테고리 필터 기반 경매 목록 조회.
+     * 상태 필터 기반 경매 목록 조회.
+     * category는 Product Service 책임이므로 Auction에서 필터링하지 않는다.
      *
      * @param status   경매 상태 필터 (null이면 전체)
-     * @param category 카테고리 필터 (null이면 전체)
      * @param pageable 페이징 및 정렬 정보
      * @return 필터링된 경매 페이지
      */
-    Page<Auction> findByFilters(AuctionStatus status, String category, Pageable pageable);
+    Page<Auction> findByFilters(AuctionStatus status, Pageable pageable);
 
     /**
      * 경매 ID로 단건 조회.
