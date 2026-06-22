@@ -31,15 +31,19 @@ public class OrderInfo {
     @Column(name = "product_id", nullable = false)
     private UUID productId;
 
+    @Column(name = "seller_id", nullable = false)
+    private Long sellerId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
-    public OrderInfo(Order order, Long orderPrice, Integer quantity, UUID productId) {
+    public OrderInfo(Order order, Long orderPrice, Integer quantity, UUID productId, Long sellerId) {
         this.order = order;
         this.orderPrice = orderPrice;
         this.quantity = quantity;
         this.productId = productId;
+        this.sellerId = sellerId;
     }
 
     @PrePersist

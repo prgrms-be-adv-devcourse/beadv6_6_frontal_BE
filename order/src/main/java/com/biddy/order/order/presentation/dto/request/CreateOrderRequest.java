@@ -8,7 +8,8 @@ public record CreateOrderRequest(
 ) {
     public record OrderInfoRequest(
             UUID productId,
-            Long orderPrice, // BigDecimal -> Long
-            Integer quantity // 수량 추가
+            Long orderPrice,
+            Integer quantity,
+            Long sellerId
     ) {}
 }

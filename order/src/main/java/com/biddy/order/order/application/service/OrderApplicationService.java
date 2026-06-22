@@ -49,6 +49,7 @@ public class OrderApplicationService implements OrderUseCase {
                         .orderPrice(item.orderPrice())
                         .quantity(item.quantity())
                         .productId(item.productId())
+                        .sellerId(item.sellerId())
                         .build())
                 .collect(Collectors.toList());
 
@@ -130,9 +131,11 @@ public class OrderApplicationService implements OrderUseCase {
     public OrderPaymentInfoResult getPaymentInfo(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+        Long sellerId = order.getOrderInfos().isEmpty() ? null : order.getOrderInfos().get(0).getSellerId();
         return new OrderPaymentInfoResult(
                 order.getId(),
                 order.getUserId(),
+                sellerId,
                 order.getTotalPrice(),
                 order.getStatus().name(),
                 order.getUpdatedAt()
@@ -167,6 +170,7 @@ public class OrderApplicationService implements OrderUseCase {
                         info.getOrderPrice(),
                         info.getQuantity(),
                         info.getProductId(),
+                        info.getSellerId(),
                         info.getCreatedAt()
                 ))
                 .toList();
