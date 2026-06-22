@@ -179,8 +179,7 @@ public class BidService implements BidUseCase {
 
                     return new MyBidResult(
                             auction.getAuctionId(),
-                            auction.getName(),
-                            auction.getThumbnailUrl(),
+                            auction.getProductId(),
                             auction.getStatus().name(),
                             auction.getCurrentBid(),
                             auction.getEndsAt(),
