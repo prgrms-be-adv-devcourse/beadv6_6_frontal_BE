@@ -15,9 +15,10 @@ public record OrderResponse(
 ) {
     public record OrderInfoResponse(
             Long id,
-            Long orderPrice, // BigDecimal -> Long
-            Integer quantity, // 수량 추가
+            Long orderPrice,
+            Integer quantity,
             UUID productId,
+            Long sellerId,
             LocalDateTime createdAt
     ) {}
 
@@ -29,6 +30,7 @@ public record OrderResponse(
                         info.orderPrice(),
                         info.quantity(),
                         info.productId(),
+                        info.sellerId(),
                         info.createdAt()
                 ))
                 .toList();

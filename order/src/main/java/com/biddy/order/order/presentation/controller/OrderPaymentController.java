@@ -22,10 +22,11 @@ public class OrderPaymentController {
         OrderPaymentInfoResult result = orderUseCase.getPaymentInfo(orderId);
         return ResponseEntity.ok(new OrderPaymentInfoResponse(
                 result.orderId(),
-                result.userId(),
-                result.totalPrice(),
+                result.userId(),      // buyerId
+                result.sellerId(),    // sellerId
+                result.totalPrice(),  // amount
                 result.status(),
-                result.updatedAt()
+                result.updatedAt()    // paymentDueAt
         ));
     }
 

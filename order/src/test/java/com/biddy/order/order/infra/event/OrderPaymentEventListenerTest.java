@@ -42,7 +42,7 @@ public class OrderPaymentEventListenerTest {
     private OrderUseCase orderUseCase;
 
     @MockitoBean
-    private org.springframework.kafka.core.KafkaTemplate<String, Object> orderKafkaTemplate;
+    private org.springframework.kafka.core.KafkaTemplate<String, String> orderKafkaTemplate;
 
     @Test
     public void testPaymentCompletedEventConsumption() throws Exception {
