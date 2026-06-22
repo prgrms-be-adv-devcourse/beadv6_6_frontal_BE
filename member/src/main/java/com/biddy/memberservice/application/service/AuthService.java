@@ -3,7 +3,7 @@ package com.biddy.memberservice.application.service;
 import com.biddy.memberservice.application.dto.request.LoginRequest;
 import com.biddy.memberservice.application.dto.request.SignupRequest;
 import com.biddy.memberservice.application.dto.response.TokenResponse;
-import com.biddy.memberservice.application.event.MemberSignupEvent;
+import com.biddy.memberservice.application.event.MemberEventPublisher;
 import com.biddy.memberservice.domain.enums.MemberStatus;
 import com.biddy.memberservice.domain.model.EmailVerification;
 import com.biddy.memberservice.domain.model.Member;
@@ -12,11 +12,9 @@ import com.biddy.memberservice.domain.repository.EmailVerificationRepository;
 import com.biddy.memberservice.domain.repository.MemberRepository;
 import com.biddy.memberservice.domain.repository.RefreshTokenRepository;
 import com.biddy.memberservice.infrastructure.security.JwtTokenProvider;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,8 +35,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
-    private final KafkaTemplate<String, String> kafkaTemplate;  // ← 추가
-    private final ObjectMapper objectMapper;  // ← 추가
+    private final MemberEventPublisher eventPublisher;
 
     @Transactional
     @SneakyThrows
@@ -66,9 +63,7 @@ public class AuthService {
         );
         Member savedMember = memberRepository.save(member);
 
-        // payment-service에 회원가입 알림 → balance 생성 요청
-        MemberSignupEvent event = new MemberSignupEvent(savedMember.getId());
-        kafkaTemplate.send("member-signup", objectMapper.writeValueAsString(event));
+        eventPublisher.publishSignup(savedMember.getId());
         log.info("Kafka 이벤트 발행: topic=member-signup, memberId={}", savedMember.getId());
     }
 
