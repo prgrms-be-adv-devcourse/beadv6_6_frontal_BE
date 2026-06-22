@@ -1,8 +1,11 @@
 package com.biddy.productservice.application.service;
 
 import com.biddy.productservice.application.usecase.ProductCommandUseCase;
+import com.biddy.productservice.domain.event.ProductRegisteredForAuctionEvent;
 import com.biddy.productservice.domain.model.Product;
+import com.biddy.productservice.domain.model.SaleType;
 import com.biddy.productservice.domain.repository.ProductRepository;
+import com.biddy.productservice.infra.event.ProductEventProducer;
 import com.biddy.productservice.presentation.dto.ProductCreateRequest;
 import com.biddy.productservice.presentation.dto.ProductUpdateRequest;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +23,9 @@ import java.util.UUID;
 public class ProductCommandService implements ProductCommandUseCase {
 
     private final ProductRepository productRepository;
+    private final ProductEventProducer eventProducer;
 
-    // 외부 acl 제외, event는 추후 추가 예정
+    // event 추가
     @Override
     public Product create(ProductCreateRequest request){
         Product product = Product.create(request.sellerId(),request.name(),request.description(),
@@ -29,6 +33,12 @@ public class ProductCommandService implements ProductCommandUseCase {
                 request.saleType(),request.brand(),request.creatorId());
 
         Product savedProduct = productRepository.save(product);
+        //경매 상품이면 Auction 도메인에 발행
+        if (savedProduct.getSaleType() == SaleType.AUCTION){
+            eventProducer.sendAuctionRegistered(
+                    new ProductRegisteredForAuctionEvent(savedProduct.getId())
+            );
+        }
         return savedProduct;
 
     }

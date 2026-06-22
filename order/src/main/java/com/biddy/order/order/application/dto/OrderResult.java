@@ -15,9 +15,10 @@ public record OrderResult(
 ) {
     public record OrderInfoResult(
             Long id,
-            Long orderPrice, // BigDecimal -> Long
-            Integer quantity, // 수량 추가
+            Long orderPrice,
+            Integer quantity,
             UUID productId,
+            Long sellerId,
             LocalDateTime createdAt
     ) {}
 }

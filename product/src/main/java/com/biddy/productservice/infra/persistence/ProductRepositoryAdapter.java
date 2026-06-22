@@ -4,6 +4,7 @@ import com.biddy.productservice.domain.model.Product;
 import com.biddy.productservice.domain.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import com.biddy.productservice.domain.model.SaleType;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,5 +32,20 @@ public class ProductRepositoryAdapter implements ProductRepository {
     @Override
     public void delete(Product product){
         productJpaRepository.delete(product);
+    }
+
+    @Override
+    public List<Product> findBySellerId(UUID sellerId){
+        return productJpaRepository.findBySellerId(sellerId);
+    }
+
+    @Override
+    public List<Product> saveAll(List<Product> products){
+        return productJpaRepository.saveAll(products);
+    }
+
+    @Override
+    public List<Product> findBySaleType(SaleType saleType){
+        return productJpaRepository.findBySaleType(saleType);
     }
 }

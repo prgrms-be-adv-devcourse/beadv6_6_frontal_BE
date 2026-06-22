@@ -4,6 +4,7 @@ package com.biddy.productservice.presentation.controller;
 import com.biddy.productservice.application.usecase.ProductCommandUseCase;
 import com.biddy.productservice.application.usecase.ProductQueryUseCase;
 import com.biddy.productservice.domain.model.Product;
+import com.biddy.productservice.domain.model.SaleType;
 import com.biddy.productservice.presentation.dto.ProductCreateRequest;
 import com.biddy.productservice.presentation.dto.ProductUpdateRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -63,11 +64,15 @@ public class ProductController {
     }
 
     @GetMapping
-    @Operation(summary = "상품 전체 조회",description = "전체 상품 목록을 조회합니다.")
+    @Operation(summary = "상품 목록 조회",description = "전체 또는 판매유형별 상품 목록을 조회합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200",description = "조회 성공")
     })
-    public List<Product> getAll(){
+    public List<Product> getProducts(
+            @RequestParam(required = false) SaleType saleType){
+        if (saleType != null) {
+            return productQueryUseCase.getBySaleType(saleType);
+        }
         return productQueryUseCase.getAll();
     }
 
