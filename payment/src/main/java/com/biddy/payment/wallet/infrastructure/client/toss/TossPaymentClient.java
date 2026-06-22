@@ -31,6 +31,15 @@ public class TossPaymentClient {
                 .body(TossPaymentConfirmResponse.class);
     }
 
+    public TossPaymentCancelResponse cancel(String paymentKey, String cancelReason, Long cancelAmount) {
+        return restClient.post()
+                .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
+                .header(HttpHeaders.AUTHORIZATION, basicAuthorizationHeader())
+                .body(new TossPaymentCancelRequest(cancelReason, cancelAmount))
+                .retrieve()
+                .body(TossPaymentCancelResponse.class);
+    }
+
     private String basicAuthorizationHeader() {
         if (secretKey == null || secretKey.isBlank()) {
             throw new IllegalStateException("Toss Payments secret key is required.");
