@@ -50,8 +50,4 @@ jobs:
         with:
           name: test-results-product
           path: product/build/reports/tests/
-<<<<<<< HEAD
           retention-days: 7
-=======
-          retention-days: 7
->>>>>>> 8f3d213b153a06faa295005091891e9eb0bf843a
