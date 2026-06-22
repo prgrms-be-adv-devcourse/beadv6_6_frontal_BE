@@ -1,6 +1,7 @@
 package com.biddy.productservice.domain.repository;
 
 import com.biddy.productservice.domain.model.Product;
+import com.biddy.productservice.domain.model.SaleType;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,4 +16,10 @@ public interface ProductRepository {
     List<Product> findAll();
 
     void delete(Product product);
+
+    List<Product> findBySellerId(UUID sellerId);
+
+    List<Product> saveAll(List<Product> products);
+
+    List<Product> findBySaleType(SaleType saleType);
 }

@@ -2,6 +2,7 @@ package com.biddy.productservice.application.service;
 
 import com.biddy.productservice.application.usecase.ProductQueryUseCase;
 import com.biddy.productservice.domain.model.Product;
+import com.biddy.productservice.domain.model.SaleType;
 import com.biddy.productservice.domain.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,5 +28,10 @@ public class ProductQueryService implements ProductQueryUseCase {
     @Override
     public List<Product> getAll(){
         return productRepository.findAll();
+    }
+
+    @Override
+    public List<Product> getBySaleType(SaleType saleType){
+        return productRepository.findBySaleType(saleType);
     }
 }

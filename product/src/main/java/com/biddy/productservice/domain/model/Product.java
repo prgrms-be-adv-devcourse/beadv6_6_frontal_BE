@@ -111,6 +111,20 @@ public class Product {
         this.brand = brand;
         this.modifyId = modifyId;
     }
+    public void deductStock(int quantity) {
+        if (this.stock < quantity) {
+            throw new IllegalStateException("재고 부족");
+        }
+        this.stock -= quantity;
+    }
+
+    public void restoreStock(int quantity) {
+        this.stock += quantity;
+    }
+
+    public void changeStatus(String status) {
+        this.status = status;
+    }
     @PrePersist
     public void onCreate(){
         if (id == null) {id = UUID.randomUUID();}
