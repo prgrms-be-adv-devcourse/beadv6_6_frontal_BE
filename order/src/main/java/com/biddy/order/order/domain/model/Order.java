@@ -48,6 +48,11 @@ public class Order {
         }
     }
 
+    // 주문 상태 변경 메소드
+    public void updateStatus(OrderStatus status) {
+        this.status = status;
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

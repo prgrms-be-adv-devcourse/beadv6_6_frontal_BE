@@ -1,5 +1,6 @@
 package com.biddy.order.order.application.usecase;
 
+import com.biddy.order.order.application.dto.OrderPaymentInfoResult;
 import com.biddy.order.order.application.dto.OrderResult;
 import com.biddy.order.order.domain.model.OrderStatus;
 import com.biddy.order.order.presentation.dto.request.CreateOrderRequest;
@@ -14,4 +15,7 @@ public interface OrderUseCase {
     OrderResult changeStatus(Long userId, Long orderId, OrderStatus status);
     OrderResult cancelOrder(Long userId, Long orderId);
     OrderResult completeOrder(Long userId, Long orderId);
+    OrderResult startPaymentProcessing(Long userId, Long orderId);
+
+    OrderPaymentInfoResult getPaymentInfo(Long orderId);
 }

@@ -10,7 +10,8 @@ public record OrderResult(
         String status,
         Long totalPrice, // BigDecimal -> Long
         List<OrderInfoResult> orderInfos, // OrderItemResult -> OrderInfoResult
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
     public record OrderInfoResult(
             Long id,
