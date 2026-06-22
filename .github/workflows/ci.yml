@@ -29,13 +29,13 @@ name: CI Pipeline
 # ---------------------------------------------------------------------------
 on:
   push:
-    branches: [ main, master ]
+    branches: [ develop, main, master ]
     paths-ignore:
       - 'docs/**'
       - '*.md'
       - '.gitignore'
   pull_request:
-    branches: [ main, master ]
+    branches: [ develop, main, master ]
     paths-ignore:
       - 'docs/**'
       - '*.md'
@@ -123,21 +123,39 @@ jobs:
           - payment
           - product
 
-    # 변경된 서비스만 빌드 (detect-changes의 output 활용)
-    # push 이벤트(main 병합)일 때는 전체 빌드
     steps:
-      - uses: actions/checkout@v4
-        if: >-
-          github.event_name == 'push' ||
-          needs.detect-changes.outputs[matrix.service] == 'true'
-
-    # steps:
       # ----- 소스 체크아웃 -----
-    #  - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      # ----- 빌드 대상 여부 계산 -----
+      # job-level if에서는 matrix 컨텍스트를 사용할 수 없으므로 step에서 계산합니다.
+      - name: Check whether service should build
+        id: should-build
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          case "${{ matrix.service }}" in
+            apigateway) changed="${{ needs.detect-changes.outputs.apigateway }}" ;;
+            auction) changed="${{ needs.detect-changes.outputs.auction }}" ;;
+            config) changed="${{ needs.detect-changes.outputs.config }}" ;;
+            discovery) changed="${{ needs.detect-changes.outputs.discovery }}" ;;
+            member) changed="${{ needs.detect-changes.outputs.member }}" ;;
+            order) changed="${{ needs.detect-changes.outputs.order }}" ;;
+            payment) changed="${{ needs.detect-changes.outputs.payment }}" ;;
+            product) changed="${{ needs.detect-changes.outputs.product }}" ;;
+            *) changed="false" ;;
+          esac
+
+          echo "run=$changed" >> "$GITHUB_OUTPUT"
 
       # ----- JDK 21 설정 -----
       # Temurin(Eclipse Adoptium)은 가장 널리 쓰이는 OpenJDK 배포판
       - name: Set up JDK 21
+        if: steps.should-build.outputs.run == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -146,9 +164,7 @@ jobs:
       # ----- Gradle 캐시 -----
       # 의존성을 캐시하여 빌드 시간을 대폭 단축 (첫 빌드 ~3분 → 캐시 후 ~1분)
       - name: Cache Gradle packages
-        if: >-
-          github.event_name == 'push' ||
-          needs.detect-changes.outputs[matrix.service] == 'true'
+        if: steps.should-build.outputs.run == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -162,24 +178,21 @@ jobs:
 
       # ----- Gradle Wrapper 실행 권한 -----
       - name: Grant execute permission for gradlew
-        if: >-
-          github.event_name == 'push' ||
-          needs.detect-changes.outputs[matrix.service] == 'true'
-        run: chmod +x ./gradlew
+        if: steps.should-build.outputs.run == 'true'
+        run: chmod +x ${{ matrix.service }}/gradlew
 
       # ----- 빌드 & 테스트 -----
       # build 태스크는 compileJava + test + jar 생성을 모두 포함
       - name: Build and Test
-        if: >-
-          github.event_name == 'push' ||
-          needs.detect-changes.outputs[matrix.service] == 'true'
-        run: ./gradlew :${{ matrix.service }}:build -x test --no-daemon
+        if: steps.should-build.outputs.run == 'true'
+        working-directory: ${{ matrix.service }}
+        run: ./gradlew build --no-daemon
         # --no-daemon: CI 환경에서는 데몬 불필요 (매번 새 환경이므로)
 
       # ----- 테스트 결과 리포트 -----
       # 테스트 실패 시에도 리포트를 업로드하여 원인 파악 가능
       - name: Upload test results
-        if: always()  # 빌드 실패해도 실행
+        if: always() && steps.should-build.outputs.run == 'true'  # 빌드 실패해도 실행
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.service }}
@@ -189,7 +202,7 @@ jobs:
       # ----- 빌드 산출물 업로드 -----
       # Docker 이미지 빌드 단계에서 사용할 JAR 파일
       - name: Upload build artifact
-        if: github.event_name == 'push'  # main push 시에만 (PR에서는 불필요)
+        if: github.event_name == 'push' && steps.should-build.outputs.run == 'true'  # main push 시에만 (PR에서는 불필요)
         uses: actions/upload-artifact@v4
         with:
           name: jar-${{ matrix.service }}

@@ -2,6 +2,8 @@ server:
   port: 8083
 
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: order-service
   datasource:
@@ -27,10 +29,16 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-
+  cloud:
+    config:
+      enabled: false # Config Server 연동 끄고 로컬 설정 사용
 eureka:
   client:
+    enabled: false # 유레카 클라이언트 기능 비활성화
     service-url:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+# 서비스 호출을 위한 설정
+product-service:
+  url: http://localhost:8082
