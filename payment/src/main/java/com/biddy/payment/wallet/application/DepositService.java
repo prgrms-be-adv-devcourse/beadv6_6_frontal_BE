@@ -7,6 +7,7 @@ import com.biddy.payment.wallet.infrastructure.client.toss.TossPaymentClient;
 import com.biddy.payment.wallet.infrastructure.client.toss.TossPaymentConfirmResponse;
 import com.biddy.payment.wallet.presentation.request.DepositAdjustRequest;
 import com.biddy.payment.wallet.presentation.response.DepositBalanceResponse;
+import com.biddy.payment.wallet.presentation.request.DepositChargeCancelRequest;
 import com.biddy.payment.wallet.presentation.request.DepositChargeRequest;
 import com.biddy.payment.wallet.presentation.response.DepositTransactionResponse;
 import com.biddy.payment.wallet.presentation.request.DepositWithdrawRequest;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DepositService {
 
     private static final String TOSS_PAYMENT_REFERENCE_TYPE = "TOSS_PAYMENT";
+    private static final String TOSS_PAYMENT_CANCEL_REFERENCE_TYPE = "TOSS_PAYMENT_CANCEL";
 
     private final DepositAccountRepository accountRepository;
     private final DepositTransactionRepository transactionRepository;
@@ -83,6 +85,35 @@ public class DepositService {
     }
 
     @Transactional
+    public DepositBalanceResponse cancelCharge(DepositChargeCancelRequest request) {
+        DepositBalanceResponse duplicated = findDuplicatedChargeCancel(request);
+        if (duplicated != null) {
+            return duplicated;
+        }
+
+        DepositTransaction charge = transactionRepository.findByReferenceTypeAndReferenceId(
+                        TOSS_PAYMENT_REFERENCE_TYPE,
+                        request.paymentKey()
+                )
+                .orElseThrow(() -> new IllegalStateException("취소할 예치금 충전 내역을 찾을 수 없습니다."));
+        validateChargeCancelRequest(request, charge);
+
+        DepositAccount account = getOrCreateWithLock(request.userId());
+        account.decrease(request.amount());
+        tossPaymentClient.cancel(request.paymentKey(), request.reason(), request.amount());
+
+        record(
+                account,
+                DepositTransactionType.CANCEL,
+                -request.amount(),
+                TOSS_PAYMENT_CANCEL_REFERENCE_TYPE,
+                request.paymentKey(),
+                request.reason()
+        );
+        return DepositBalanceResponse.from(account);
+    }
+
+    @Transactional
     public DepositBalanceResponse withdraw(DepositWithdrawRequest request) {
         DepositAccount account = getOrCreateWithLock(request.userId());
         account.decrease(request.amount());
@@ -136,6 +167,29 @@ public class DepositService {
                     return getBalance(request.userId());
                 })
                 .orElse(null);
+    }
+
+    private DepositBalanceResponse findDuplicatedChargeCancel(DepositChargeCancelRequest request) {
+        return transactionRepository.findByReferenceTypeAndReferenceId(TOSS_PAYMENT_CANCEL_REFERENCE_TYPE, request.paymentKey())
+                .map(transaction -> {
+                    if (!Objects.equals(transaction.getUserId(), request.userId())) {
+                        throw new IllegalStateException("이미 다른 사용자에게 취소 처리된 paymentKey입니다.");
+                    }
+                    return getBalance(request.userId());
+                })
+                .orElse(null);
+    }
+
+    private void validateChargeCancelRequest(DepositChargeCancelRequest request, DepositTransaction charge) {
+        if (charge.getType() != DepositTransactionType.CHARGE) {
+            throw new IllegalStateException("예치금 충전 내역만 취소할 수 있습니다.");
+        }
+        if (!Objects.equals(charge.getUserId(), request.userId())) {
+            throw new IllegalStateException("충전 사용자와 취소 요청 사용자가 일치하지 않습니다.");
+        }
+        if (!Objects.equals(charge.getAmount(), request.amount())) {
+            throw new IllegalStateException("충전 금액과 취소 금액이 일치하지 않습니다.");
+        }
     }
 
     private void validateTossConfirmResponse(

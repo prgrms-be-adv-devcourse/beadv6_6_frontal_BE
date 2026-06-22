@@ -2,6 +2,7 @@ package com.biddy.payment.wallet.presentation.controller;
 
 import com.biddy.payment.global.response.ApiResponse;
 import com.biddy.payment.wallet.presentation.request.DepositAdjustRequest;
+import com.biddy.payment.wallet.presentation.request.DepositChargeCancelRequest;
 import com.biddy.payment.wallet.presentation.response.DepositBalanceResponse;
 import com.biddy.payment.wallet.presentation.request.DepositChargeRequest;
 import com.biddy.payment.wallet.presentation.response.DepositTransactionResponse;
@@ -30,6 +31,11 @@ public class DepositController {
     @PostMapping("/charge")
     public ApiResponse<DepositBalanceResponse> charge(@Valid @RequestBody DepositChargeRequest request) {
         return ApiResponse.ok(depositService.charge(request), "예치금 충전이 완료되었습니다.");
+    }
+
+    @PostMapping("/charge/cancel")
+    public ApiResponse<DepositBalanceResponse> cancelCharge(@Valid @RequestBody DepositChargeCancelRequest request) {
+        return ApiResponse.ok(depositService.cancelCharge(request), "예치금 충전 취소가 완료되었습니다.");
     }
 
     @PostMapping("/withdraw")
