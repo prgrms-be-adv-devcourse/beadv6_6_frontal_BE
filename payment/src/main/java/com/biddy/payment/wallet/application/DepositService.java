@@ -51,6 +51,12 @@ public class DepositService {
     }
 
     @Transactional
+    public void openAccount(Long userId) {
+        accountRepository.findByUserId(userId)
+                .orElseGet(() -> accountRepository.save(DepositAccount.open(userId)));
+    }
+
+    @Transactional
     public DepositBalanceResponse charge(DepositChargeRequest request) {
         DepositBalanceResponse duplicated = findDuplicatedCharge(request);
         if (duplicated != null) {
