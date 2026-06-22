@@ -3,6 +3,7 @@ package com.biddy.payment.payment.application;
 import com.biddy.payment.payment.domain.event.PaymentCompletedEvent;
 import com.biddy.payment.payment.domain.event.PaymentFailedEvent;
 import com.biddy.payment.payment.domain.event.PaymentRefundedEvent;
+import com.biddy.payment.payment.domain.event.OrderCancelledEvent;
 import com.biddy.payment.wallet.domain.DepositTransactionType;
 import com.biddy.payment.wallet.application.DepositService;
 import com.biddy.payment.payment.domain.CancelType;
@@ -124,6 +125,63 @@ public class PaymentService {
         return processCancel(id, request, CancelType.REFUND);
     }
 
+    @Transactional
+    public void cancelByOrderCancellation(OrderCancelledEvent event) {
+        paymentRepository.findFirstByOrderIdOrderByIdDesc(event.orderId())
+                .ifPresent(payment -> cancelByOrderCancellation(payment, event));
+    }
+
+    private void cancelByOrderCancellation(Payment payment, OrderCancelledEvent event) {
+        if (!Objects.equals(payment.getUserId(), event.userId())) {
+            throw new IllegalStateException("주문 취소 이벤트의 사용자와 결제 사용자가 일치하지 않습니다.");
+        }
+        if (payment.getStatus() == PaymentStatus.CANCELLED
+                || payment.getStatus() == PaymentStatus.REFUNDED
+                || payment.getStatus() == PaymentStatus.FAILED) {
+            return;
+        }
+        if (!payment.isCompleted()) {
+            payment.cancel();
+            return;
+        }
+
+        String reason = resolveCancelReason(event.reason());
+        long totalCancelAmount = paymentCancelRepository.sumCancelAmountByPaymentId(payment.getId());
+        long remainingAmount = payment.getAmount() - totalCancelAmount;
+        if (remainingAmount <= 0) {
+            payment.refund();
+            return;
+        }
+
+        if (payment.getPaymentMethod() == PaymentMethod.NORMAL) {
+            tossPaymentClient.cancel(payment.getPgTransactionId(), reason, remainingAmount);
+        }
+
+        PaymentCancel cancel = PaymentCancel.create(payment.getId(), CancelType.REFUND, reason, remainingAmount);
+        paymentCancelRepository.save(cancel);
+
+        if (payment.getPaymentMethod() == PaymentMethod.WALLET) {
+            depositService.increaseForCancel(
+                    payment.getUserId(),
+                    remainingAmount,
+                    String.valueOf(payment.getId()),
+                    DepositTransactionType.REFUND,
+                    reason
+            );
+        }
+
+        payment.refund();
+        paymentEventProducer.publish(new PaymentRefundedEvent(
+                UUID.randomUUID(),
+                payment.getId(),
+                payment.getOrderId(),
+                payment.getUserId(),
+                remainingAmount,
+                reason,
+                LocalDateTime.now()
+        ));
+    }
+
     private PaymentResponse processCancel(Long id, PaymentCancelRequest request, CancelType cancelType) {
         Payment payment = findPayment(id);
         if (!payment.isCompleted()) {
@@ -233,6 +291,13 @@ public class PaymentService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String resolveCancelReason(String reason) {
+        if (isBlank(reason)) {
+            return "주문 취소";
+        }
+        return reason;
     }
 
     private Payment findPayment(Long id) {
