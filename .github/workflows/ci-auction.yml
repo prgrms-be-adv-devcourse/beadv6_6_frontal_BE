@@ -19,6 +19,31 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: biddy
+          POSTGRES_PASSWORD: biddy1234
+          POSTGRES_DB: biddy_auction
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U biddy -d biddy_auction"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +67,15 @@ jobs:
 
       - name: Build and Test
         working-directory: auction
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          AUCTION_DB: biddy_auction
+          POSTGRES_USER: biddy
+          POSTGRES_PASSWORD: biddy1234
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          EUREKA_CLIENT_ENABLED: false
         run: ./gradlew build --no-daemon
 
       - name: Upload test results
