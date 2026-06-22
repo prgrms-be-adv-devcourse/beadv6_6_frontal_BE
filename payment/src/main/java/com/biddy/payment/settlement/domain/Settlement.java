@@ -96,6 +96,9 @@ public class Settlement {
     }
 
     public void complete() {
+        if (this.status == SettlementStatus.COMPLETED) {
+            return;
+        }
         if (this.status == SettlementStatus.CANCELLED) {
             throw new IllegalStateException("취소된 정산은 완료할 수 없습니다.");
         }
@@ -105,6 +108,9 @@ public class Settlement {
     }
 
     public void cancel() {
+        if (this.status == SettlementStatus.CANCELLED) {
+            return;
+        }
         if (this.status == SettlementStatus.COMPLETED) {
             throw new IllegalStateException("완료된 정산은 취소할 수 없습니다.");
         }
