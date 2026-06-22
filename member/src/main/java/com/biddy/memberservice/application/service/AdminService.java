@@ -1,15 +1,13 @@
 package com.biddy.memberservice.application.service;
 
 import com.biddy.memberservice.application.dto.response.AdminMemberResponse;
+import com.biddy.memberservice.application.event.MemberEventPublisher;
 import com.biddy.memberservice.domain.enums.WithdrawalStatus;
 import com.biddy.memberservice.domain.model.Member;
 import com.biddy.memberservice.domain.model.Withdrawal;
 import com.biddy.memberservice.domain.repository.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +22,7 @@ public class AdminService {
     private final WithdrawalRequestRepository withdrawalRequestRepository;
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
-
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final MemberEventPublisher eventPublisher;
 
     // 회원 탈퇴 조회
     public List<Withdrawal> getPendingWithdrawals() {
@@ -44,6 +40,8 @@ public class AdminService {
         withdrawalRequestRepository.save(request);
         refreshTokenRepository.deleteByMemberId(memberId);
         memberRepository.deleteById(memberId);
+        eventPublisher.publishWithdraw(memberId);
+        log.info("Kafka 이벤트 발행: topic=member-withdraw, memberId={}", memberId);
     }
 
     // 회원 조회
@@ -61,5 +59,7 @@ public class AdminService {
         member.suspend();
         memberRepository.save(member);
         refreshTokenRepository.deleteByMemberId(memberId);
+        eventPublisher.publishWithdraw(memberId);
+        log.info("Kafka 이벤트 발행: topic=member-withdraw, memberId={}", memberId);
     }
 }
