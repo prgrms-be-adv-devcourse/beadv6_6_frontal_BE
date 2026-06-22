@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,11 +40,10 @@ class MyBidServiceTest {
 
     private Auction createAuction(String id, AuctionStatus status, Long currentBid, int bidCount) {
         return Auction.builder()
-                .auctionId(id).sellerId(10L).name("상품 " + id)
+                .auctionId(id).sellerId(10L).productId(UUID.randomUUID())
                 .startPrice(100000L).minIncrement(10000L)
                 .currentBid(currentBid).bidCount(bidCount)
                 .status(status).watcherCount(0)
-                .thumbnailUrl("https://img.test.com/" + id + ".jpg")
                 .endsAt(LocalDateTime.of(2026, 6, 20, 15, 0))
                 .build();
     }

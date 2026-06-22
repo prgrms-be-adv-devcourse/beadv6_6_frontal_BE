@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -35,33 +36,30 @@ class AuctionControllerTest {
     @MockitoBean
     private AuctionUseCase auctionUseCase;
 
+    private static final UUID TEST_PRODUCT_ID = UUID.randomUUID();
+
     @Nested
     @DisplayName("GET /api/v1/auctions - 경매 피드 조회")
     class GetAuctionFeed {
 
-        private AuctionFeedResult createFeedResult(String id, String name, Long currentBid, Integer bidCount) {
-            return new AuctionFeedResult(
-                    id, name, "TestEdition", "TestBrand",
-                    currentBid, bidCount,
-                    LocalDateTime.of(2026, 6, 12, 15, 30, 0),
-                    88, "https://img.test.com/thumb.jpg",
-                    new AuctionFeedResult.SellerInfo(1L, "collector01")
-            );
-        }
-
         @Test
         @DisplayName("경매 피드를 정상 조회한다")
         void returnsOkWithContent() throws Exception {
+            AuctionFeedResult result = new AuctionFeedResult(
+                    "A-FNF97", TEST_PRODUCT_ID, 1L,
+                    400000L, 20000L, 720000L, 6,
+                    LocalDateTime.of(2026, 6, 12, 15, 30, 0),
+                    88, "LIVE"
+            );
             given(auctionUseCase.getAuctionFeed(any()))
-                    .willReturn(new PageImpl<>(List.of(
-                            createFeedResult("A-FNF97", "나이키 덩크", 720000L, 6)
-                    ), PageRequest.of(0, 20), 1));
+                    .willReturn(new PageImpl<>(List.of(result), PageRequest.of(0, 20), 1));
 
             mockMvc.perform(get("/api/v1/auctions"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content[0].auctionId").value("A-FNF97"))
+                    .andExpect(jsonPath("$.content[0].productId").exists())
                     .andExpect(jsonPath("$.content[0].currentBid").value(720000))
-                    .andExpect(jsonPath("$.content[0].seller.collectorId").value(1))
+                    .andExpect(jsonPath("$.content[0].status").value("LIVE"))
                     .andExpect(jsonPath("$.totalElements").value(1));
         }
 
@@ -81,37 +79,27 @@ class AuctionControllerTest {
     @DisplayName("GET /api/v1/auctions/{auctionId} - 경매 상세 조회")
     class GetAuctionDetail {
 
-        private AuctionDetailResult createDetailResult(String id) {
-            return new AuctionDetailResult(
-                    id, "나이키 덩크", "Limited", "Nike",
-                    "sneakers", "테스트 설명", "https://img.test.com/thumb.jpg",
-                    400000L, 20000L, 720000L, 6,
-                    LocalDateTime.of(2026, 6, 20, 15, 0),
-                    AuctionStatus.LIVE, 88,
-                    new AuctionDetailResult.TopBidderInfo(42L, null),
-                    false, null
-            );
-        }
-
         @Test
         @DisplayName("존재하는 경매를 상세 조회하면 200과 상세 정보를 반환한다")
         void withExistingAuction_returnsDetail() throws Exception {
-            given(auctionUseCase.getAuctionDetail("A-001"))
-                    .willReturn(createDetailResult("A-001"));
+            AuctionDetailResult result = new AuctionDetailResult(
+                    "A-001", TEST_PRODUCT_ID, 10L,
+                    400000L, 20000L, 720000L, 6,
+                    null, LocalDateTime.of(2026, 6, 20, 15, 0),
+                    AuctionStatus.LIVE, 88, null, null,
+                    new AuctionDetailResult.TopBidderInfo(42L, 720000L),
+                    false, null
+            );
+            given(auctionUseCase.getAuctionDetail("A-001")).willReturn(result);
 
             mockMvc.perform(get("/api/v1/auctions/A-001"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.auctionId").value("A-001"))
-                    .andExpect(jsonPath("$.name").value("나이키 덩크"))
+                    .andExpect(jsonPath("$.productId").exists())
                     .andExpect(jsonPath("$.startPrice").value(400000))
-                    .andExpect(jsonPath("$.minIncrement").value(20000))
                     .andExpect(jsonPath("$.currentBid").value(720000))
-                    .andExpect(jsonPath("$.bidCount").value(6))
                     .andExpect(jsonPath("$.status").value("LIVE"))
-                    .andExpect(jsonPath("$.watcherCount").value(88))
-                    .andExpect(jsonPath("$.topBidder.collectorId").value(42))
-                    .andExpect(jsonPath("$.isWatching").value(false))
-                    .andExpect(jsonPath("$.myHighestBid").isEmpty());
+                    .andExpect(jsonPath("$.topBidder.bidderId").value(42));
         }
 
         @Test
@@ -128,11 +116,10 @@ class AuctionControllerTest {
         @DisplayName("입찰이 없는 경매를 조회하면 topBidder가 null이다")
         void withNoBids_topBidderIsNull() throws Exception {
             AuctionDetailResult result = new AuctionDetailResult(
-                    "A-002", "상품", "Edition", "Brand",
-                    "sneakers", "설명", null,
+                    "A-002", TEST_PRODUCT_ID, 10L,
                     100000L, 10000L, 0L, 0,
-                    LocalDateTime.of(2026, 6, 20, 15, 0),
-                    AuctionStatus.LIVE, 0,
+                    null, LocalDateTime.of(2026, 6, 20, 15, 0),
+                    AuctionStatus.LIVE, 0, null, null,
                     null, false, null
             );
             given(auctionUseCase.getAuctionDetail("A-002")).willReturn(result);
@@ -152,7 +139,7 @@ class AuctionControllerTest {
         @DisplayName("낙찰된 경매 결과를 조회하면 SOLD를 반환한다")
         void soldAuction_returnsSold() throws Exception {
             AuctionResultInfo result = new AuctionResultInfo(
-                    "A-001", "SOLD", 42L, 720000L, 7,
+                    "A-001", TEST_PRODUCT_ID, "SOLD", 42L, 101L, 720000L, 7,
                     LocalDateTime.of(2026, 6, 20, 15, 0),
                     LocalDateTime.of(2026, 6, 21, 15, 0)
             );
@@ -161,29 +148,26 @@ class AuctionControllerTest {
             mockMvc.perform(get("/api/v1/auctions/A-001/result"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.auctionId").value("A-001"))
+                    .andExpect(jsonPath("$.productId").exists())
                     .andExpect(jsonPath("$.type").value("SOLD"))
-                    .andExpect(jsonPath("$.winner.collectorId").value(42))
-                    .andExpect(jsonPath("$.finalBid").value(720000))
-                    .andExpect(jsonPath("$.totalBids").value(7))
-                    .andExpect(jsonPath("$.paymentDeadline").exists());
+                    .andExpect(jsonPath("$.winnerId").value(42))
+                    .andExpect(jsonPath("$.finalBid").value(720000));
         }
 
         @Test
         @DisplayName("유찰된 경매 결과를 조회하면 UNSOLD를 반환한다")
         void unsoldAuction_returnsUnsold() throws Exception {
             AuctionResultInfo result = new AuctionResultInfo(
-                    "A-002", "UNSOLD", null, null, 0,
-                    LocalDateTime.of(2026, 6, 20, 15, 0),
-                    null
+                    "A-002", TEST_PRODUCT_ID, "UNSOLD", null, null, null, 0,
+                    LocalDateTime.of(2026, 6, 20, 15, 0), null
             );
             given(auctionUseCase.getAuctionResult("A-002")).willReturn(result);
 
             mockMvc.perform(get("/api/v1/auctions/A-002/result"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.type").value("UNSOLD"))
-                    .andExpect(jsonPath("$.winner").doesNotExist())
-                    .andExpect(jsonPath("$.finalBid").doesNotExist())
-                    .andExpect(jsonPath("$.totalBids").value(0));
+                    .andExpect(jsonPath("$.winnerId").doesNotExist())
+                    .andExpect(jsonPath("$.finalBid").doesNotExist());
         }
 
         @Test

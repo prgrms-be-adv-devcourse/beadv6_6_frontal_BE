@@ -3,6 +3,7 @@ package com.biddy.auction.auction.application.scheduler;
 import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
+import com.biddy.auction.auction.infra.kafka.AuctionEndedEventProducer;
 import com.biddy.auction.auction.infra.websocket.AuctionWebSocketPublisher;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,11 +39,14 @@ class AuctionCloseSchedulerTest {
     @Mock
     private AuctionWebSocketPublisher webSocketPublisher;
 
+    @Mock
+    private AuctionEndedEventProducer auctionEndedEventProducer;
+
     private Auction createExpiredAuction(String id, int bidCount) {
         return Auction.builder()
                 .auctionId(id)
+                .productId(UUID.randomUUID())
                 .sellerId(10L)
-                .name("테스트 상품")
                 .startPrice(100000L)
                 .minIncrement(10000L)
                 .currentBid(bidCount > 0 ? 500000L : 0L)
@@ -78,6 +83,7 @@ class AuctionCloseSchedulerTest {
 
         assertThat(auction.getStatus()).isEqualTo(AuctionStatus.ENDED);
         verify(webSocketPublisher).publishEnded("A-001", 42L, 720000L);
+        verify(auctionEndedEventProducer).publish(auction, topBid);
         verify(webSocketPublisher, never()).publishUnsold(any());
     }
 
@@ -94,6 +100,7 @@ class AuctionCloseSchedulerTest {
         assertThat(auction.getStatus()).isEqualTo(AuctionStatus.ENDED);
         verify(webSocketPublisher).publishUnsold("A-002");
         verify(webSocketPublisher, never()).publishEnded(any(), any(), any());
+        verifyNoInteractions(auctionEndedEventProducer);
     }
 
     @Test

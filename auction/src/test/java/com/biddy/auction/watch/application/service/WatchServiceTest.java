@@ -22,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,7 +48,7 @@ class WatchServiceTest {
         return Auction.builder()
                 .auctionId("A-001")
                 .sellerId(10L)
-                .name("테스트 상품")
+                .productId(UUID.randomUUID())
                 .startPrice(100000L)
                 .minIncrement(10000L)
                 .watcherCount(watcherCount)
@@ -132,7 +133,6 @@ class WatchServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).auctionId()).isEqualTo("A-001");
-        assertThat(result.getContent().get(0).name()).isEqualTo("테스트 상품");
     }
 
     @Test
