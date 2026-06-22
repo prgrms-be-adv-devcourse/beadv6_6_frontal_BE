@@ -17,24 +17,21 @@ import java.util.Optional;
 /**
  * Auction JPA Repository (Spring Data JPA).
  *
- * <p>infra 레이어에 위치하며, domain의 {@code AuctionRepository} Port를
- * 구현하는 {@code AuctionRepositoryImpl}에서 내부적으로 사용한다.
- * 도메인 레이어에서 직접 참조하지 않는다.</p>
+ * <p>category 필터는 제거됨 — category는 Product Service 책임.
+ * 경매 피드에서 카테고리 필터링이 필요하면 Gateway/BFF에서 Product + Auction을 조합한다.</p>
  */
 public interface AuctionJpaRepository extends JpaRepository<Auction, String> {
 
     /**
-     * 동적 필터 기반 경매 조회 JPQL.
-     * IS NULL OR 패턴으로 파라미터가 null이면 해당 조건을 무시한다.
+     * 상태 필터 기반 경매 조회 JPQL.
+     * status가 null이면 전체 조회.
      */
     @Query("""
             SELECT a FROM Auction a
             WHERE (:status IS NULL OR a.status = :status)
-              AND (:category IS NULL OR a.category = :category)
             """)
     Page<Auction> findByFilters(
             @Param("status") AuctionStatus status,
-            @Param("category") String category,
             Pageable pageable
     );
 

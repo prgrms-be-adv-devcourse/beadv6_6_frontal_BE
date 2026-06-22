@@ -34,7 +34,7 @@ public class ProductAuctionRegisteredConsumer {
      */
     @KafkaListener(topics = "product.auction.registered", groupId = "auction-service")
     public void consume(ProductAuctionRegisteredPayload payload) {
-        log.info("경매 상품 등록 이벤트 수신: productId={}, name={}", payload.productId(), payload.name());
+        log.info("경매 상품 등록 이벤트 수신: productId={}", payload.productId());
         auctionService.createFromProduct(payload);
     }
 }

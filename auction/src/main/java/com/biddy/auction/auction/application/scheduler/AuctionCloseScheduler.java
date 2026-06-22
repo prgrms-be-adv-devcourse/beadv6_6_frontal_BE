@@ -2,6 +2,7 @@ package com.biddy.auction.auction.application.scheduler;
 
 import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
+import com.biddy.auction.auction.infra.kafka.AuctionEndedEventProducer;
 import com.biddy.auction.auction.infra.websocket.AuctionWebSocketPublisher;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
@@ -40,6 +41,7 @@ public class AuctionCloseScheduler {
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
     private final AuctionWebSocketPublisher webSocketPublisher;
+    private final AuctionEndedEventProducer auctionEndedEventProducer;
 
     /**
      * 1초 간격으로 만료 경매를 조회하여 종료 처리한다.
@@ -74,11 +76,10 @@ public class AuctionCloseScheduler {
      * 입찰 유무에 따라 낙찰/유찰을 분기한다.
      */
     private void closeAuction(Auction auction) {
-        auction.close();
-
         if (auction.hasBids()) {
             handleAwarded(auction);
         } else {
+            auction.closeUnsold();
             handleUnsold(auction);
         }
     }
@@ -91,13 +92,23 @@ public class AuctionCloseScheduler {
         Bid topBid = bidRepository.findTopByAuctionId(auction.getAuctionId())
                 .orElse(null);
 
-        Long winnerId = topBid != null ? topBid.getBidderId() : null;
-        Long finalBid = topBid != null ? topBid.getAmount() : auction.getCurrentBid();
+        if (topBid == null) {
+            auction.closeUnsold();
+            handleUnsold(auction);
+            return;
+        }
 
-        webSocketPublisher.publishEnded(auction.getAuctionId(), winnerId, finalBid);
+        // 경매 종료 + 낙찰자 확정
+        auction.close(topBid.getBidderId(), topBid.getBidId());
+
+        // WebSocket push
+        webSocketPublisher.publishEnded(auction.getAuctionId(), topBid.getBidderId(), topBid.getAmount());
+
+        // Kafka로 Order Service에 낙찰 이벤트 발행
+        auctionEndedEventProducer.publish(auction, topBid);
 
         log.info("낙찰 처리 완료: auctionId={}, winnerId={}, finalBid={}",
-                auction.getAuctionId(), winnerId, finalBid);
+                auction.getAuctionId(), topBid.getBidderId(), topBid.getAmount());
     }
 
     /**

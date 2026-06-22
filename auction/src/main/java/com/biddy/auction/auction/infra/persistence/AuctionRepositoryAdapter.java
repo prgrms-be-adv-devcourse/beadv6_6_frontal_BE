@@ -26,8 +26,8 @@ public class AuctionRepositoryAdapter implements AuctionRepository {
     private final AuctionJpaRepository auctionJpaRepository;
 
     @Override
-    public Page<Auction> findByFilters(AuctionStatus status, String category, Pageable pageable) {
-        return auctionJpaRepository.findByFilters(status, category, pageable);
+    public Page<Auction> findByFilters(AuctionStatus status, Pageable pageable) {
+        return auctionJpaRepository.findByFilters(status, pageable);
     }
 
     @Override
