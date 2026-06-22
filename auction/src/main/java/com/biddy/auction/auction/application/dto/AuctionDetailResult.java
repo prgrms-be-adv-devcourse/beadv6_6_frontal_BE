@@ -5,64 +5,56 @@ import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.bid.domain.model.Bid;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 경매 상세 조회 결과 DTO.
  *
- * <p>경매 상세 페이지에 필요한 모든 정보를 담는다.
- * 상품 정보, 가격, 통계, 최고 입찰자, 사용자별 상태(관심/내 최고입찰)를 포함한다.</p>
+ * <p>경매 상태 데이터만 포함. 상품 정보(name, brand 등)는
+ * API Gateway/BFF에서 productId로 Product Service를 조회하여 조합한다.</p>
  */
 public record AuctionDetailResult(
         String auctionId,
-        String name,
-        String edition,
-        String brand,
-        String category,
-        String description,
-        String thumbnailUrl,
+        UUID productId,
+        Long sellerId,
         Long startPrice,
         Long minIncrement,
         Long currentBid,
         Integer bidCount,
+        LocalDateTime startsAt,
         LocalDateTime endsAt,
         AuctionStatus status,
         Integer watcherCount,
+        Long winnerId,
+        Long winningBidId,
         TopBidderInfo topBidder,
         boolean isWatching,
         Long myHighestBid
 ) {
 
-    /** 최고 입찰자 정보 */
-    public record TopBidderInfo(Long collectorId, String nickname) {
+    /** 최고 입찰자 정보 (bidderId + 금액만, 닉네임은 Gateway 조합) */
+    public record TopBidderInfo(Long bidderId, Long amount) {
     }
 
-    /**
-     * Auction 엔티티 + 최고 입찰 정보로 결과 DTO를 생성한다.
-     *
-     * @param auction 경매 엔티티
-     * @param topBid  최고 입찰 (없으면 null)
-     * @return 경매 상세 결과
-     */
     public static AuctionDetailResult from(Auction auction, Bid topBid) {
         TopBidderInfo topBidder = topBid != null
-                ? new TopBidderInfo(topBid.getBidderId(), null)
+                ? new TopBidderInfo(topBid.getBidderId(), topBid.getAmount())
                 : null;
 
         return new AuctionDetailResult(
                 auction.getAuctionId(),
-                auction.getName(),
-                auction.getEdition(),
-                auction.getBrand(),
-                auction.getCategory(),
-                auction.getDescription(),
-                auction.getThumbnailUrl(),
+                auction.getProductId(),
+                auction.getSellerId(),
                 auction.getStartPrice(),
                 auction.getMinIncrement(),
                 auction.getCurrentBid(),
                 auction.getBidCount(),
+                auction.getStartsAt(),
                 auction.getEndsAt(),
                 auction.getStatus(),
                 auction.getWatcherCount(),
+                auction.getWinnerId(),
+                auction.getWinningBidId(),
                 topBidder,
                 false,  // TODO: 인증 연동 후 사용자별 관심 여부 조회
                 null    // TODO: 인증 연동 후 사용자별 최고 입찰 조회

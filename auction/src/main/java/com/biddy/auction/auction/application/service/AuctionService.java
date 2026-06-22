@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
+import com.biddy.auction.auction.domain.model.AuctionStatus;
 
 /**
  * 경매 UseCase 구현체.
@@ -52,7 +53,7 @@ public class AuctionService implements AuctionUseCase {
         Sort sort = resolveSort(query.sort());
         Pageable pageable = PageRequest.of(query.page(), query.size(), sort);
 
-        return auctionRepository.findByFilters(query.status(), query.category(), pageable)
+        return auctionRepository.findByFilters(query.status(), pageable)
                 .map(AuctionFeedResult::from);
     }
 
@@ -126,21 +127,17 @@ public class AuctionService implements AuctionUseCase {
 
         Auction auction = Auction.builder()
                 .auctionId(auctionId)
+                .productId(payload.productId())
                 .sellerId(payload.sellerId())
-                .name(payload.name())
-                .brand(payload.brand())
-                .edition(payload.edition())
-                .category(payload.category())
-                .description(payload.description())
-                .thumbnailUrl(payload.thumbnailUrl())
                 .startPrice(payload.startPrice())
                 .minIncrement(payload.minIncrement())
+                .startsAt(payload.startsAt())
                 .endsAt(payload.endsAt())
                 .build();
 
         auctionRepository.save(auction);
-        log.info("경매 자동 생성: auctionId={}, productId={}, name={}",
-                auctionId, payload.productId(), payload.name());
+        log.info("경매 자동 생성: auctionId={}, productId={}",
+                auctionId, payload.productId());
     }
 
     /** 경매 ID 생성 (A- prefix + 랜덤 5자리 대문자 영숫자) */

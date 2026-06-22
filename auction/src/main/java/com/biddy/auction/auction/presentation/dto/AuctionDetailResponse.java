@@ -4,58 +4,56 @@ import com.biddy.auction.auction.application.dto.AuctionDetailResult;
 import com.biddy.auction.auction.domain.model.AuctionStatus;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 경매 상세 조회 API 응답 DTO.
  *
- * <p>application 레이어의 {@code AuctionDetailResult}를 HTTP 응답에 맞게 변환한다.
- * 내부 비즈니스 모델이 API에 직접 노출되지 않도록 보호한다.</p>
+ * <p>경매 상태 데이터만 포함. 상품 정보는 Gateway 조합.</p>
  */
 public record AuctionDetailResponse(
         String auctionId,
-        String name,
-        String edition,
-        String brand,
-        String category,
-        String description,
-        String thumbnailUrl,
+        UUID productId,
+        Long sellerId,
         Long startPrice,
         Long minIncrement,
         Long currentBid,
         Integer bidCount,
+        LocalDateTime startsAt,
         LocalDateTime endsAt,
         AuctionStatus status,
         Integer watcherCount,
+        Long winnerId,
+        Long winningBidId,
         TopBidderResponse topBidder,
         boolean isWatching,
         Long myHighestBid
 ) {
 
-    /** 최고 입찰자 응답 */
-    public record TopBidderResponse(Long collectorId, String nickname) {
+    /** 최고 입찰자 응답 (bidderId + 금액만) */
+    public record TopBidderResponse(Long bidderId, Long amount) {
 
         static TopBidderResponse from(AuctionDetailResult.TopBidderInfo info) {
             if (info == null) return null;
-            return new TopBidderResponse(info.collectorId(), info.nickname());
+            return new TopBidderResponse(info.bidderId(), info.amount());
         }
     }
 
     public static AuctionDetailResponse from(AuctionDetailResult result) {
         return new AuctionDetailResponse(
                 result.auctionId(),
-                result.name(),
-                result.edition(),
-                result.brand(),
-                result.category(),
-                result.description(),
-                result.thumbnailUrl(),
+                result.productId(),
+                result.sellerId(),
                 result.startPrice(),
                 result.minIncrement(),
                 result.currentBid(),
                 result.bidCount(),
+                result.startsAt(),
                 result.endsAt(),
                 result.status(),
                 result.watcherCount(),
+                result.winnerId(),
+                result.winningBidId(),
                 TopBidderResponse.from(result.topBidder()),
                 result.isWatching(),
                 result.myHighestBid()

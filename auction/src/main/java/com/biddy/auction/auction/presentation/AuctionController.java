@@ -6,6 +6,9 @@ import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.auction.presentation.dto.AuctionDetailResponse;
 import com.biddy.auction.auction.presentation.dto.AuctionFeedResponse;
 import com.biddy.auction.auction.presentation.dto.AuctionResultResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -13,11 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 경매 REST API Controller.
- *
- * <p>HTTP 요청을 받아 UseCase 인터페이스에 위임하고,
- * 결과를 API 응답 DTO로 변환하여 반환한다.
- * 모든 응답은 {@code ResponseEntity}로 감싸 HTTP 상태 코드를 명시적으로 제어한다.</p>
  */
+@Tag(name = "경매", description = "경매 피드 조회, 상세 조회, 낙찰 결과 조회 API")
 @RestController
 @RequestMapping("/api/v1/auctions")
 @RequiredArgsConstructor
@@ -25,43 +25,35 @@ public class AuctionController {
 
     private final AuctionUseCase auctionUseCase;
 
-    /**
-     * 경매 피드 조회.
-     * GET /api/v1/auctions?status=LIVE&category=sneakers&sort=ending&page=0&size=20
-     */
+    @Operation(summary = "경매 피드 조회", description = "상태, 정렬 기준으로 경매 목록을 페이징 조회한다. 카테고리 필터는 Product Service 책임 (Gateway 조합).")
     @GetMapping
     public ResponseEntity<Page<AuctionFeedResponse>> getAuctionFeed(
-            @RequestParam(required = false) AuctionStatus status,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String sort,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @Parameter(description = "경매 상태 (LIVE, ENDED)") @RequestParam(required = false) AuctionStatus status,
+            @Parameter(description = "정렬 기준 (ending: 마감임박, price: 높은가격, latest: 최신)") @RequestParam(required = false) String sort,
+            @Parameter(description = "페이지 번호 (0부터)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") int size
     ) {
-        AuctionFeedQuery query = new AuctionFeedQuery(status, category, sort, page, size);
+        AuctionFeedQuery query = new AuctionFeedQuery(status, sort, page, size);
         Page<AuctionFeedResponse> response = auctionUseCase.getAuctionFeed(query)
                 .map(AuctionFeedResponse::from);
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 경매 상세 조회.
-     * GET /api/v1/auctions/{auctionId}
-     */
+    @Operation(summary = "경매 상세 조회", description = "경매 ID로 상세 정보를 조회한다. 상품정보, 가격, 통계, 최고입찰자를 포함한다.")
     @GetMapping("/{auctionId}")
-    public ResponseEntity<AuctionDetailResponse> getAuctionDetail(@PathVariable String auctionId) {
+    public ResponseEntity<AuctionDetailResponse> getAuctionDetail(
+            @Parameter(description = "경매 ID (예: A-FNF97)") @PathVariable String auctionId
+    ) {
         AuctionDetailResponse response = AuctionDetailResponse.from(
                 auctionUseCase.getAuctionDetail(auctionId));
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 낙찰/유찰 결과 조회.
-     * GET /api/v1/auctions/{auctionId}/result
-     *
-     * <p>종료된 경매만 조회 가능. LIVE 상태면 409 Conflict.</p>
-     */
+    @Operation(summary = "낙찰/유찰 결과 조회", description = "종료된 경매의 낙찰 또는 유찰 결과를 조회한다. LIVE 상태면 409 Conflict.")
     @GetMapping("/{auctionId}/result")
-    public ResponseEntity<AuctionResultResponse> getAuctionResult(@PathVariable String auctionId) {
+    public ResponseEntity<AuctionResultResponse> getAuctionResult(
+            @Parameter(description = "경매 ID (예: A-FNF97)") @PathVariable String auctionId
+    ) {
         AuctionResultResponse response = AuctionResultResponse.from(
                 auctionUseCase.getAuctionResult(auctionId));
         return ResponseEntity.ok(response);

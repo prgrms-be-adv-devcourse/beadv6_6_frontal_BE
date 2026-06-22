@@ -3,45 +3,39 @@ package com.biddy.auction.auction.presentation.dto;
 import com.biddy.auction.auction.application.dto.AuctionFeedResult;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 경매 피드 API 응답 DTO.
  *
- * <p>application 레이어의 {@code AuctionFeedResult}를 HTTP 응답에 맞게 변환한다.
- * API 스펙이 변경되어도 내부 비즈니스 모델에 영향을 주지 않는다.</p>
+ * <p>경매 상태 데이터만 포함. 상품 정보(name, brand 등)는
+ * API Gateway/BFF에서 productId로 Product Service를 조회하여 조합한다.</p>
  */
 public record AuctionFeedResponse(
         String auctionId,
-        String name,
-        String edition,
-        String brand,
+        UUID productId,
+        Long sellerId,
+        Long startPrice,
+        Long minIncrement,
         Long currentBid,
         Integer bidCount,
         LocalDateTime endsAt,
         Integer watcherCount,
-        String thumbnailUrl,
-        SellerResponse seller
+        String status
 ) {
-
-    public record SellerResponse(Long collectorId, String nickname) {
-
-        static SellerResponse from(AuctionFeedResult.SellerInfo sellerInfo) {
-            return new SellerResponse(sellerInfo.collectorId(), sellerInfo.nickname());
-        }
-    }
 
     public static AuctionFeedResponse from(AuctionFeedResult result) {
         return new AuctionFeedResponse(
                 result.auctionId(),
-                result.name(),
-                result.edition(),
-                result.brand(),
+                result.productId(),
+                result.sellerId(),
+                result.startPrice(),
+                result.minIncrement(),
                 result.currentBid(),
                 result.bidCount(),
                 result.endsAt(),
                 result.watcherCount(),
-                result.thumbnailUrl(),
-                SellerResponse.from(result.seller())
+                result.status()
         );
     }
 }

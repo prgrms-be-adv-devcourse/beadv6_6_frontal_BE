@@ -4,22 +4,17 @@ import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.bid.domain.model.Bid;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 낙찰/유찰 결과 DTO.
- *
- * @param auctionId       경매 ID
- * @param type            결과 유형 (SOLD, UNSOLD)
- * @param winnerId        낙찰자 ID (유찰이면 null)
- * @param finalBid        최종 낙찰가 (유찰이면 null)
- * @param totalBids       총 입찰 수
- * @param endedAt         경매 종료 시각
- * @param paymentDeadline 결제 기한 (낙찰 시 endsAt + 24h, 유찰이면 null)
  */
 public record AuctionResultInfo(
         String auctionId,
+        UUID productId,
         String type,
         Long winnerId,
+        Long winningBidId,
         Long finalBid,
         Integer totalBids,
         LocalDateTime endedAt,
@@ -30,8 +25,10 @@ public record AuctionResultInfo(
     public static AuctionResultInfo sold(Auction auction, Bid topBid) {
         return new AuctionResultInfo(
                 auction.getAuctionId(),
+                auction.getProductId(),
                 "SOLD",
-                topBid.getBidderId(),
+                auction.getWinnerId(),
+                auction.getWinningBidId(),
                 topBid.getAmount(),
                 auction.getBidCount(),
                 auction.getEndsAt(),
@@ -43,7 +40,9 @@ public record AuctionResultInfo(
     public static AuctionResultInfo unsold(Auction auction) {
         return new AuctionResultInfo(
                 auction.getAuctionId(),
+                auction.getProductId(),
                 "UNSOLD",
+                null,
                 null,
                 null,
                 auction.getBidCount(),
