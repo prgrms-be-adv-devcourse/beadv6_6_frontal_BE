@@ -83,4 +83,8 @@ jobs:
       - name: Build and Test
         if: matrix.changed == 'true'
         working-directory: ${{ matrix.service }}
+<<<<<<< HEAD
         run: ./gradlew build --no-daemon
+=======
+        run: ./gradlew build --no-daemon
+>>>>>>> 8f3d213b153a06faa295005091891e9eb0bf843a
