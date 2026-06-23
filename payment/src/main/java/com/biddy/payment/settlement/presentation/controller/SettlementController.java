@@ -6,12 +6,12 @@ import com.biddy.payment.settlement.presentation.response.SettlementResponse;
 import com.biddy.payment.settlement.application.SettlementService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,14 +32,15 @@ public class SettlementController {
     }
 
     @GetMapping
-    public ApiResponse<List<SettlementResponse>> getSettlements(
-            @RequestParam(required = false) Long userId
-    ) {
-        return ApiResponse.ok(settlementService.getSettlements(userId));
+    public ApiResponse<List<SettlementResponse>> getSettlements(@AuthenticationPrincipal Long memberId) {
+        return ApiResponse.ok(settlementService.getSettlements(memberId));
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<SettlementResponse> getSettlement(@PathVariable Long id) {
-        return ApiResponse.ok(settlementService.getSettlement(id));
+    public ApiResponse<SettlementResponse> getSettlement(
+            @AuthenticationPrincipal Long memberId,
+            @PathVariable Long id
+    ) {
+        return ApiResponse.ok(settlementService.getSettlement(id, memberId));
     }
 }
