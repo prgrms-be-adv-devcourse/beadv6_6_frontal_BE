@@ -10,9 +10,9 @@ import com.biddy.payment.wallet.presentation.request.DepositWithdrawRequest;
 import com.biddy.payment.wallet.application.DepositService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,18 +29,27 @@ public class DepositController {
     }
 
     @PostMapping("/charge")
-    public ApiResponse<DepositBalanceResponse> charge(@Valid @RequestBody DepositChargeRequest request) {
-        return ApiResponse.ok(depositService.charge(request), "예치금 충전이 완료되었습니다.");
+    public ApiResponse<DepositBalanceResponse> charge(
+            @AuthenticationPrincipal Long memberId,
+            @Valid @RequestBody DepositChargeRequest request
+    ) {
+        return ApiResponse.ok(depositService.charge(request.withUserId(memberId)), "예치금 충전이 완료되었습니다.");
     }
 
     @PostMapping("/charge/cancel")
-    public ApiResponse<DepositBalanceResponse> cancelCharge(@Valid @RequestBody DepositChargeCancelRequest request) {
-        return ApiResponse.ok(depositService.cancelCharge(request), "예치금 충전 취소가 완료되었습니다.");
+    public ApiResponse<DepositBalanceResponse> cancelCharge(
+            @AuthenticationPrincipal Long memberId,
+            @Valid @RequestBody DepositChargeCancelRequest request
+    ) {
+        return ApiResponse.ok(depositService.cancelCharge(request.withUserId(memberId)), "예치금 충전 취소가 완료되었습니다.");
     }
 
     @PostMapping("/withdraw")
-    public ApiResponse<DepositBalanceResponse> withdraw(@Valid @RequestBody DepositWithdrawRequest request) {
-        return ApiResponse.ok(depositService.withdraw(request), "예치금 출금 신청이 완료되었습니다.");
+    public ApiResponse<DepositBalanceResponse> withdraw(
+            @AuthenticationPrincipal Long memberId,
+            @Valid @RequestBody DepositWithdrawRequest request
+    ) {
+        return ApiResponse.ok(depositService.withdraw(request.withUserId(memberId)), "예치금 출금 신청이 완료되었습니다.");
     }
 
     @PatchMapping("/adjust")
@@ -48,13 +57,13 @@ public class DepositController {
         return ApiResponse.ok(depositService.adjust(request), "예치금 강제 조정이 완료되었습니다.");
     }
 
-    @GetMapping("/users/{userId}/balance")
-    public ApiResponse<DepositBalanceResponse> getBalance(@PathVariable Long userId) {
-        return ApiResponse.ok(depositService.getBalance(userId));
+    @GetMapping("/balance")
+    public ApiResponse<DepositBalanceResponse> getBalance(@AuthenticationPrincipal Long memberId) {
+        return ApiResponse.ok(depositService.getBalance(memberId));
     }
 
-    @GetMapping("/users/{userId}/transactions")
-    public ApiResponse<List<DepositTransactionResponse>> getTransactions(@PathVariable Long userId) {
-        return ApiResponse.ok(depositService.getTransactions(userId));
+    @GetMapping("/transactions")
+    public ApiResponse<List<DepositTransactionResponse>> getTransactions(@AuthenticationPrincipal Long memberId) {
+        return ApiResponse.ok(depositService.getTransactions(memberId));
     }
 }

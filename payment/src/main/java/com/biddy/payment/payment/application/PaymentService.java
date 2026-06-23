@@ -111,18 +111,20 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public PaymentResponse get(Long id) {
-        return toResponse(findPayment(id));
+    public PaymentResponse get(Long id, Long memberId) {
+        Payment payment = findPayment(id);
+        validatePaymentOwner(payment, memberId);
+        return toResponse(payment);
     }
 
     @Transactional
-    public PaymentResponse cancel(Long id, PaymentCancelRequest request) {
-        return processCancel(id, request, CancelType.CANCEL);
+    public PaymentResponse cancel(Long id, Long memberId, PaymentCancelRequest request) {
+        return processCancel(id, memberId, request, CancelType.CANCEL);
     }
 
     @Transactional
-    public PaymentResponse refund(Long id, PaymentCancelRequest request) {
-        return processCancel(id, request, CancelType.REFUND);
+    public PaymentResponse refund(Long id, Long memberId, PaymentCancelRequest request) {
+        return processCancel(id, memberId, request, CancelType.REFUND);
     }
 
     @Transactional
@@ -182,8 +184,9 @@ public class PaymentService {
         ));
     }
 
-    private PaymentResponse processCancel(Long id, PaymentCancelRequest request, CancelType cancelType) {
+    private PaymentResponse processCancel(Long id, Long memberId, PaymentCancelRequest request, CancelType cancelType) {
         Payment payment = findPayment(id);
+        validatePaymentOwner(payment, memberId);
         if (!payment.isCompleted()) {
             throw new IllegalStateException("완료된 결제만 취소 또는 환불할 수 있습니다.");
         }
@@ -303,6 +306,12 @@ public class PaymentService {
     private Payment findPayment(Long id) {
         return paymentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("결제를 찾을 수 없습니다. id=" + id));
+    }
+
+    private void validatePaymentOwner(Payment payment, Long memberId) {
+        if (!Objects.equals(payment.getUserId(), memberId)) {
+            throw new IllegalStateException("본인의 결제만 조회하거나 취소할 수 있습니다.");
+        }
     }
 
     private PaymentResponse toResponse(Payment payment) {
