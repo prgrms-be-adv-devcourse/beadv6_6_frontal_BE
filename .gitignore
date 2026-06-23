@@ -15,8 +15,4 @@
 .DS_Store
 Thumbs.db
 
-# Domain services (임시 제외 - auction 제외)
-member/
-order/
-payment/
-product/
+

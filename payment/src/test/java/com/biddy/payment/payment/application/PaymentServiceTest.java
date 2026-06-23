@@ -181,7 +181,7 @@ class PaymentServiceTest {
                 LocalDateTime.now()
         ));
 
-        PaymentResponse refunded = paymentService.get(payment.id());
+        PaymentResponse refunded = paymentService.get(payment.id(), buyerId);
         assertThat(refunded.status()).isEqualTo(PaymentStatus.REFUNDED);
         assertThat(depositService.getBalance(buyerId).balance()).isEqualTo(100_000L);
 
@@ -235,7 +235,7 @@ class PaymentServiceTest {
                 LocalDateTime.now()
         ));
 
-        PaymentResponse refunded = paymentService.get(payment.id());
+        PaymentResponse refunded = paymentService.get(payment.id(), buyerId);
         assertThat(refunded.status()).isEqualTo(PaymentStatus.REFUNDED);
 
         verify(tossPaymentClient).cancel(paymentKey, "주문 취소", amount);
