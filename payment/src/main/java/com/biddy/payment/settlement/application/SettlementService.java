@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,9 +54,7 @@ public class SettlementService {
 
     @Transactional(readOnly = true)
     public List<SettlementResponse> getSettlements(Long userId) {
-        List<Settlement> settlements = userId == null
-                ? settlementRepository.findAllByOrderByCreatedAtDesc()
-                : settlementRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        List<Settlement> settlements = settlementRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
         return settlements.stream()
                 .map(this::toResponse)
@@ -63,9 +62,10 @@ public class SettlementService {
     }
 
     @Transactional(readOnly = true)
-    public SettlementResponse getSettlement(Long id) {
+    public SettlementResponse getSettlement(Long id, Long memberId) {
         Settlement settlement = settlementRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("정산을 찾을 수 없습니다. id=" + id));
+        validateSettlementOwner(settlement, memberId);
         return toResponse(settlement);
     }
 
@@ -167,6 +167,12 @@ public class SettlementService {
     private void validateYearMonth(String yearMonth) {
         if (!yearMonth.matches("\\d{4}-\\d{2}")) {
             throw new IllegalArgumentException("정산 연월은 yyyy-MM 형식이어야 합니다.");
+        }
+    }
+
+    private void validateSettlementOwner(Settlement settlement, Long memberId) {
+        if (!Objects.equals(settlement.getUserId(), memberId)) {
+            throw new IllegalStateException("본인의 정산만 조회할 수 있습니다.");
         }
     }
 
