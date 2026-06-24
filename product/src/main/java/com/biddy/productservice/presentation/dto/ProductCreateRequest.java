@@ -5,13 +5,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Schema(description = "상품 생성 정보")
 public record ProductCreateRequest(
-        @Schema(description = "판매자 ID",example = "33333333-3333-3333-3333-333333333333")
-        UUID sellerId,
-
         @Schema(description = "상품명",example = "2026 한정판 굿즈")
         String name,
 
@@ -35,9 +31,6 @@ public record ProductCreateRequest(
         SaleType saleType,
 
         @Schema(description = "브랜드",example = "나이키")
-        String brand,
-
-        @Schema(description = "등록자 Id",example = "33333333-3333-3333-3333-333333333333")
-        UUID creatorId
+        String brand
 ) {
 }

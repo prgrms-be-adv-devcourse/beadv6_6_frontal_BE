@@ -1,6 +1,7 @@
 package com.biddy.productservice.presentation.controller;
 
 
+import com.biddy.productservice.application.service.ProductImageService;
 import com.biddy.productservice.application.usecase.ProductCommandUseCase;
 import com.biddy.productservice.application.usecase.ProductQueryUseCase;
 import com.biddy.productservice.domain.model.Product;
@@ -16,7 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,28 +30,44 @@ public class ProductController {
 
     private final ProductCommandUseCase productCommandUseCase;
     private final ProductQueryUseCase productQueryUseCase;
+    private final ProductImageService productImageService;
 
     @PostMapping
-    @Operation(summary = "상품 등록",description = "상품을 새로 등록합니다.")
+    @Operation(summary = "상품 등록",description = "상품을 새로 등록합니다. 로그인 필요.")
     @ApiResponses({
             @ApiResponse(responseCode="201",description="생성 성공",
             content = @Content(schema = @Schema(implementation = Product.class))),
-            @ApiResponse(responseCode="400",description="요청 오류")
+            @ApiResponse(responseCode="400",description="요청 오류"),
+            @ApiResponse(responseCode="401",description="인증 필요")
     })
-    public ResponseEntity<Product> create(@Valid @RequestBody ProductCreateRequest request){
-        Product response = productCommandUseCase.create(request);
+    public ResponseEntity<Product> create(
+            @RequestHeader(value = "X-Member-Id", required = false) String memberIdStr,
+            @Valid @RequestBody ProductCreateRequest request){
+        if (memberIdStr == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Long memberId = Long.parseLong(memberIdStr);
+        Product response = productCommandUseCase.create(request, memberId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "상품 수정",description = "상품 정보를 수정합니다.")
+    @Operation(summary = "상품 수정",description = "상품 정보를 수정합니다. 로그인 필요.")
     @ApiResponses({
             @ApiResponse(responseCode="200",description="수정 성공",
                     content = @Content(schema = @Schema(implementation = Product.class))),
-            @ApiResponse(responseCode="404",description="상품 없음")
+            @ApiResponse(responseCode="404",description="상품 없음"),
+            @ApiResponse(responseCode="401",description="인증 필요")
     })
-    public Product update(@PathVariable UUID id, @Valid @RequestBody ProductUpdateRequest request){
-        return productCommandUseCase.update(id,request);
+    public ResponseEntity<Product> update(
+            @RequestHeader(value = "X-Member-Id", required = false) String memberIdStr,
+            @PathVariable UUID id,
+            @Valid @RequestBody ProductUpdateRequest request){
+        if (memberIdStr == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Long memberId = Long.parseLong(memberIdStr);
+        return ResponseEntity.ok(productCommandUseCase.update(id, request, memberId));
     }
 
     @DeleteMapping("/{id}")
@@ -86,6 +105,15 @@ public class ProductController {
         return productQueryUseCase.getById(id);
     }
 
+
+    @PostMapping("/{id}/images")
+    @Operation(summary = "상품 이미지 업로드", description = "상품에 이미지를 등록합니다. 최대 5장")
+    public ResponseEntity<List<String>> uploadImages(
+            @PathVariable UUID id,
+            @RequestParam("images") List<MultipartFile> images) throws IOException {
+        List<String> urls = productImageService.uploadImages(id, images);
+        return ResponseEntity.status(HttpStatus.CREATED).body(urls);
+    }
 
     @PostMapping("/details")
     public List<ProductInfoResponse> getProductsInfo(

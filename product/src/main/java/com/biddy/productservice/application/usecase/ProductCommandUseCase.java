@@ -8,7 +8,7 @@ import java.util.UUID;
 
 public interface ProductCommandUseCase {
 
-    Product create(ProductCreateRequest request);
-    Product update(UUID id, ProductUpdateRequest request);
+    Product create(ProductCreateRequest request, Long memberId);
+    Product update(UUID id, ProductUpdateRequest request, Long memberId);
     void delete(UUID id);
 }

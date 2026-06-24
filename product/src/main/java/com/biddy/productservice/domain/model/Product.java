@@ -7,6 +7,8 @@ import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -52,29 +54,35 @@ public class Product {
     @Schema(description = "브랜드",example = "나이키")
     private String brand;
 
+    @ElementCollection
+    @CollectionTable(name = "product_image_urls", joinColumns = @JoinColumn(name = "product_id"))
+    @Column(name = "image_url")
+    @Schema(description = "상품 이미지 URL 목록")
+    private List<String> imageUrls = new ArrayList<>();
+
     @Column(name = "reg_dt",nullable = false)
     @Schema(description = "등록일시",example = "2026-06-15T18:10:00",accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime regDt;
 
     @Column(name = "modify_id", nullable = false)
-    @Schema(description = "수정자 ID", example = "33333333-3333-3333-3333-333333333333")
-    private UUID modifyId;
+    @Schema(description = "수정자 ID", example = "1")
+    private Long modifyId;
 
     @Column(name = "modify_dt",nullable = false)
     @Schema(description = "수정일시",example = "2026-06-16T18:30:00",accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime modifyDt;
 
     @Column(name = "seller_id",nullable = false)
-    @Schema(description = "판매자 ID", example = "33333333-3333-3333-3333-333333333333")
-    private UUID sellerId;
+    @Schema(description = "판매자 ID", example = "1")
+    private Long sellerId;
 
     @Column(name = "reg_id",nullable = false)
-    @Schema(description = "등록자 ID", example = "33333333-3333-3333-3333-333333333333")
-    private UUID regId;
+    @Schema(description = "등록자 ID", example = "1")
+    private Long regId;
 
     protected Product(){}
 
-    private Product(UUID id, UUID sellerId, String name, String description, BigDecimal price, int stock, String status, String category,
+    private Product(UUID id, Long sellerId, String name, String description, BigDecimal price, int stock, String status, String category,
                     SaleType saleType, String brand) {
         this.id = id;
         this.sellerId = sellerId;
@@ -89,9 +97,9 @@ public class Product {
     }
 
     // Id는 randomUUID로 내부 생성
-    public static Product create(UUID sellerId, String name, String description, BigDecimal price,
+    public static Product create(Long sellerId, String name, String description, BigDecimal price,
                                  int stock, String status, String category,
-                                 SaleType saleType, String brand, UUID creatorId)
+                                 SaleType saleType, String brand, Long creatorId)
     {
         Product product = new Product(UUID.randomUUID(),sellerId,name,description,price,
                 stock,status,category,saleType,brand);
@@ -101,7 +109,7 @@ public class Product {
     }
 
     public void update(String name, String description, BigDecimal price, int stock, String status,
-                       String category, String brand,UUID modifyId){
+                       String category, String brand, Long modifyId){
         this.name = name;
         this.description = description;
         this.price = price;
@@ -125,6 +133,13 @@ public class Product {
     public void changeStatus(String status) {
         this.status = status;
     }
+
+    public void addImageUrls(List<String> urls) {
+        if (this.imageUrls.size() + urls.size() > 5) {
+            throw new IllegalStateException("이미지는 최대 5장까지 등록 가능합니다.");
+        }
+        this.imageUrls.addAll(urls);
+    }
     @PrePersist
     public void onCreate(){
         if (id == null) {id = UUID.randomUUID();}
@@ -136,7 +151,6 @@ public class Product {
     @PreUpdate
     public void onUpdate() {
         modifyDt = LocalDateTime.now();
-        if(modifyId ==null) { modifyId = id;}
     }
 }
 
