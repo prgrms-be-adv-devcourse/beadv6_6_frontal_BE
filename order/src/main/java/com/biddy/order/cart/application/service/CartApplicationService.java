@@ -4,10 +4,11 @@ import com.biddy.order.cart.application.dto.CartResult;
 import com.biddy.order.cart.application.usecase.CartUseCase;
 import com.biddy.order.cart.domain.model.Cart;
 import com.biddy.order.cart.domain.repository.CartRepository;
-import com.biddy.order.cart.infra.client.ProductApiClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -19,7 +20,11 @@ import java.util.stream.Collectors;
 public class CartApplicationService implements CartUseCase {
 
     private final CartRepository cartRepository;
-    private final ProductApiClient productApiClient;
+    
+    @Value("${product-service.url}")
+    private String productServiceUrl;
+
+    private final RestTemplate restTemplate;
 
     @Override
     @Transactional
@@ -47,14 +52,25 @@ public class CartApplicationService implements CartUseCase {
                 .map(Cart::getProductId)
                 .toList();
         // 3. RestTemplate을 가지고 상품 서버(8082포트) API 직접 호출
-        List<ProductApiClient.ProductResponse> products = productApiClient.getProductsBulk(productIds);
+        String baseUrl = productServiceUrl + "/api/v1/products/";
+        List<ProductResponse> products = productIds.stream()
+                .map(id -> {
+                    try {
+                        String url = baseUrl + id;
+                        return restTemplate.getForObject(url, ProductResponse.class);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
         // 4. 상품 ID를 Key로 하는 Map으로 가공 (빠른 매칭을 위해)
-        Map<UUID, ProductApiClient.ProductResponse> productMap = products.stream()
-                .collect(Collectors.toMap(ProductApiClient.ProductResponse::productId, p -> p));
+        Map<UUID, ProductResponse> productMap = products.stream()
+                .collect(Collectors.toMap(ProductResponse::productId, p -> p));
         // 5. 장바구니 리스트와 상품 정보를 결합하여 반환
         return carts.stream()
                 .map(cart -> {
-                    ProductApiClient.ProductResponse product = productMap.get(cart.getProductId());
+                    ProductResponse product = productMap.get(cart.getProductId());
                     return new CartResult(
                             cart.getId(),
                             cart.getUserId(),
@@ -68,6 +84,14 @@ public class CartApplicationService implements CartUseCase {
                 })
                 .toList();
     }
+
+    public record ProductResponse(
+            UUID productId,
+            String name,
+            BigDecimal price,
+            String status,
+            Long userId
+    ) {}
 
     @Override
     @Transactional

@@ -61,7 +61,7 @@ public class OrderApplicationService implements OrderUseCase {
         // 5. 카프카 이벤트 발행 (결제 요청 및 재고 차감)
         orderEventPublisher.ifPresent(publisher -> {
             savedOrder.getOrderInfos().forEach(info -> 
-                publisher.publishDecreaseStock(info.getProductId(), info.getQuantity())
+                publisher.publishDecreaseStock(savedOrder.getId(), info.getProductId(), info.getQuantity())
             );
         });
 
@@ -150,7 +150,7 @@ public class OrderApplicationService implements OrderUseCase {
             
             // 2. 각 상품들에 대한 재고 원복 요청 발송
             order.getOrderInfos().forEach(info -> 
-                publisher.publishRestoreStock(info.getProductId(), info.getQuantity())
+                publisher.publishRestoreStock(order.getId(), info.getProductId(), info.getQuantity())
             );
         });
     }
