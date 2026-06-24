@@ -22,4 +22,6 @@ public interface ProductRepository {
     List<Product> saveAll(List<Product> products);
 
     List<Product> findBySaleType(SaleType saleType);
+
+    List<Product> findAllById(List<UUID> ids);
 }
