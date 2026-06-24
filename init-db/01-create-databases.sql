@@ -1,7 +1,4 @@
 CREATE DATABASE biddy_member;
-\connect biddy_member
-CREATE SCHEMA IF NOT EXISTS member_biddy;
-
 CREATE DATABASE biddy_product;
 CREATE DATABASE biddy_order;
 CREATE DATABASE biddy_auction;
