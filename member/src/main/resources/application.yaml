@@ -5,9 +5,9 @@ spring:
   application:
     name: member-service
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${MEMBER_DB:biddy_member}
-    username: ${POSTGRES_USER:biddy}
-    password: ${POSTGRES_PASSWORD:biddy1234}
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${MEMBER_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -15,6 +15,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: member_biddy
         format_sql: true
     show-sql: true
   kafka:
@@ -27,6 +28,17 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 eureka:
   client:
@@ -34,3 +46,9 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration: 1800000
+  refresh-expiration: 604800000

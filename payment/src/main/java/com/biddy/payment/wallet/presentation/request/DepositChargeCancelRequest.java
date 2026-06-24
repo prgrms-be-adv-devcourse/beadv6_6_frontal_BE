@@ -1,0 +1,17 @@
+package com.biddy.payment.wallet.presentation.request;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
+public record DepositChargeCancelRequest(
+        @Schema(hidden = true) Long userId,
+        @NotNull @Positive Long amount,
+        @NotBlank String paymentKey,
+        @NotBlank String reason
+) {
+    public DepositChargeCancelRequest withUserId(Long userId) {
+        return new DepositChargeCancelRequest(userId, amount, paymentKey, reason);
+    }
+}
