@@ -1,14 +1,13 @@
 package com.biddy.order;
 
 import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.assertThat;
+import org.springframework.boot.test.context.SpringBootTest;
 
+@SpringBootTest
 class OrderApplicationTests {
 
     @Test
-    void simpleTestToPassCI() {
-        String status = "OK";
-        assertThat(status).isEqualTo("OK");
+    void contextLoads() {
     }
 
 }
