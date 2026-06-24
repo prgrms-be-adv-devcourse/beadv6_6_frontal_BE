@@ -8,6 +8,7 @@ public record ProductInfoResponse(
         String name,
         BigDecimal price,
         String status,
-        UUID sellerId
+        UUID sellerId,
+        int stock
 ) {
 }

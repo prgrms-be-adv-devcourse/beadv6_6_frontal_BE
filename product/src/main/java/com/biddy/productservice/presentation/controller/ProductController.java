@@ -98,7 +98,8 @@ public class ProductController {
                         product.getName(),
                         product.getPrice(),
                         product.getStatus(),
-                        product.getSellerId()
+                        product.getSellerId(),
+                        product.getStock()
                 ))
                 .toList();
     }
