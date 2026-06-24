@@ -34,7 +34,7 @@ public class OrderPaymentController {
     public ResponseEntity<OrderPaymentProcessingResponse> startPaymentProcessing(
             @PathVariable("orderId") Long orderId,
             @RequestParam(value = "userId", required = false) Long paramUserId,
-            @RequestHeader(value = "X-User-Id", required = false) Long headerUserId
+            @RequestHeader(value = "X-Member-Id", required = false) Long headerUserId
     ) {
         Long userId = paramUserId != null ? paramUserId : headerUserId;
         if (userId == null) {

@@ -20,7 +20,7 @@ public class OrderController {
     // 1. 주문 생성 (POST /order/create)
     @PostMapping("/create")
     public ResponseEntity<OrderResponse> createOrder(
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-Member-Id") Long userId,
             @RequestBody CreateOrderRequest request
     ) {
         OrderResult result = orderUseCase.createOrder(userId, request);
@@ -30,7 +30,7 @@ public class OrderController {
     // 2. 주문 목록 조회 (GET /order/list)
     @GetMapping("/list")
     public ResponseEntity<List<OrderResponse>> getOrderList(
-            @RequestHeader("X-User-Id") Long userId
+            @RequestHeader("X-Member-Id") Long userId
     ) {
         List<OrderResponse> response = orderUseCase.getOrderList(userId).stream()
                 .map(OrderResponse::from)
@@ -41,7 +41,7 @@ public class OrderController {
     // 3. 주문 상세 조회 (GET /order/info)
     @GetMapping("/info")
     public ResponseEntity<OrderResponse> getOrderDetail(
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-Member-Id") Long userId,
             @RequestParam("orderId") Long orderId
     ) {
         OrderResult result = orderUseCase.getOrderDetail(userId, orderId);
@@ -51,7 +51,7 @@ public class OrderController {
     // 4. 주문 상태 변경 (PUT /order/statusChange)
     @PutMapping("/statusChange")
     public ResponseEntity<OrderResponse> changeStatus(
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-Member-Id") Long userId,
             @RequestParam("orderId") Long orderId,
             @RequestParam("status") OrderStatus status
     ) {
@@ -62,7 +62,7 @@ public class OrderController {
     // 5. 주문 취소 (PUT /order/cancel)
     @PutMapping("/cancel")
     public ResponseEntity<OrderResponse> cancelOrder(
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-Member-Id") Long userId,
             @RequestParam("orderId") Long orderId
     ) {
         OrderResult result = orderUseCase.cancelOrder(userId, orderId);
@@ -72,7 +72,7 @@ public class OrderController {
     // 6. 주문 완료 (PUT /order/complete)
     @PutMapping("/complete")
     public ResponseEntity<OrderResponse> completeOrder(
-            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-Member-Id") Long userId,
             @RequestParam("orderId") Long orderId
     ) {
         OrderResult result = orderUseCase.completeOrder(userId, orderId);
