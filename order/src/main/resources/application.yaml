@@ -35,6 +35,9 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+kafka:
+  enabled: true
+
 # 서비스 호출을 위한 설정
 product-service:
   url: http://localhost:8082
