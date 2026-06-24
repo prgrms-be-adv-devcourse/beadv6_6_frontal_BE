@@ -34,4 +34,6 @@ public class ProductQueryService implements ProductQueryUseCase {
     public List<Product> getBySaleType(SaleType saleType){
         return productRepository.findBySaleType(saleType);
     }
+
+    public List<Product> getProductsByIds(List<UUID> ids){ return productRepository.findAllById(ids); }
 }

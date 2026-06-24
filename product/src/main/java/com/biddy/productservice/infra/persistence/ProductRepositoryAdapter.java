@@ -48,4 +48,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
     public List<Product> findBySaleType(SaleType saleType){
         return productJpaRepository.findBySaleType(saleType);
     }
+
+    @Override
+    public List<Product> findAllById(List<UUID> ids) { return productJpaRepository.findAllById(ids); }
 }

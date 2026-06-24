@@ -14,4 +14,6 @@ public interface ProductQueryUseCase {
 
     List<Product> getBySaleType(SaleType saleType);
 
+    List<Product> getProductsByIds(List<UUID> ids);
+
 }

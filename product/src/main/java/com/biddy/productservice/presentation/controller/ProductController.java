@@ -5,8 +5,7 @@ import com.biddy.productservice.application.usecase.ProductCommandUseCase;
 import com.biddy.productservice.application.usecase.ProductQueryUseCase;
 import com.biddy.productservice.domain.model.Product;
 import com.biddy.productservice.domain.model.SaleType;
-import com.biddy.productservice.presentation.dto.ProductCreateRequest;
-import com.biddy.productservice.presentation.dto.ProductUpdateRequest;
+import com.biddy.productservice.presentation.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -85,6 +84,23 @@ public class ProductController {
     })
     public Product getById(@PathVariable UUID id){
         return productQueryUseCase.getById(id);
+    }
+
+
+    @PostMapping("/details")
+    public List<ProductInfoResponse> getProductsInfo(
+            @RequestBody ProductIdsRequest request
+    ) {
+        return productQueryUseCase.getProductsByIds(request.productIds())
+                .stream()
+                .map(product -> new ProductInfoResponse(
+                        product.getId(),
+                        product.getName(),
+                        product.getPrice(),
+                        product.getStatus(),
+                        product.getSellerId()
+                ))
+                .toList();
     }
 
 }
