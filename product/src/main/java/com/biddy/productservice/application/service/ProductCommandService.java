@@ -27,10 +27,10 @@ public class ProductCommandService implements ProductCommandUseCase {
 
     // event 추가
     @Override
-    public Product create(ProductCreateRequest request){
-        Product product = Product.create(request.sellerId(),request.name(),request.description(),
+    public Product create(ProductCreateRequest request, Long memberId){
+        Product product = Product.create(memberId,request.name(),request.description(),
                 request.price(),request.stock(),request.status(),request.category(),
-                request.saleType(),request.brand(),request.creatorId());
+                request.saleType(),request.brand(),memberId);
 
         Product savedProduct = productRepository.save(product);
         //경매 상품이면 Auction 도메인에 발행
@@ -44,12 +44,12 @@ public class ProductCommandService implements ProductCommandUseCase {
     }
 
     @Override
-    public Product update(UUID id, ProductUpdateRequest request){
+    public Product update(UUID id, ProductUpdateRequest request, Long memberId){
         Product product = productRepository.findById(id)
                 .orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND,"상품을 찾을 수 없습니다."));
 
         product.update(request.name(),request.description(),request.price(),request.stock(),
-                request.status(),request.category(),request.brand(),request.modifierId());
+                request.status(),request.category(),request.brand(),memberId);
         return productRepository.save(product);
     }
     @Override

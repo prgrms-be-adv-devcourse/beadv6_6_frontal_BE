@@ -1,14 +1,11 @@
 package com.biddy.productservice.presentation.dto;
 
-
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Schema(description = "상품 수정 정보")
 public record ProductUpdateRequest(
-
         @Schema(description = "상품명",example = "2026 한정판 굿즈")
         String name,
 
@@ -28,9 +25,6 @@ public record ProductUpdateRequest(
         String category,
 
         @Schema(description = "상표",example = "나이키")
-        String brand,
-
-        @Schema(description = "수정자 Id",example = "33333333-3333-3333-3333-333333333333")
-        UUID modifierId
+        String brand
 ) {
 }

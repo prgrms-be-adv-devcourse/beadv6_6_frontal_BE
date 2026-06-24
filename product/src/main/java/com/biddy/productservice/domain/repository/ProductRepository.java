@@ -17,7 +17,7 @@ public interface ProductRepository {
 
     void delete(Product product);
 
-    List<Product> findBySellerId(UUID sellerId);
+    List<Product> findBySellerId(Long sellerId);
 
     List<Product> saveAll(List<Product> products);
 
