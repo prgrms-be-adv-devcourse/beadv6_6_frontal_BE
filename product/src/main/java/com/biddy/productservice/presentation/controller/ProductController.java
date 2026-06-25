@@ -16,12 +16,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("${api.init}/products")
@@ -41,12 +41,8 @@ public class ProductController {
             @ApiResponse(responseCode="401",description="인증 필요")
     })
     public ResponseEntity<Product> create(
-            @RequestHeader(value = "X-Member-Id", required = false) String memberIdStr,
             @Valid @RequestBody ProductCreateRequest request){
-        if (memberIdStr == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        Long memberId = Long.parseLong(memberIdStr);
+        Long memberId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Product response = productCommandUseCase.create(request, memberId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -60,13 +56,9 @@ public class ProductController {
             @ApiResponse(responseCode="401",description="인증 필요")
     })
     public ResponseEntity<Product> update(
-            @RequestHeader(value = "X-Member-Id", required = false) String memberIdStr,
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @Valid @RequestBody ProductUpdateRequest request){
-        if (memberIdStr == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        Long memberId = Long.parseLong(memberIdStr);
+        Long memberId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         return ResponseEntity.ok(productCommandUseCase.update(id, request, memberId));
     }
 
@@ -76,7 +68,7 @@ public class ProductController {
             @ApiResponse(responseCode = "204", description = "삭제 성공"),
             @ApiResponse(responseCode = "404", description = "상품 없음")
     })
-    public ResponseEntity<Void> delete(@PathVariable UUID id){
+    public ResponseEntity<Void> delete(@PathVariable Long id){
         productCommandUseCase.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -101,7 +93,7 @@ public class ProductController {
                     content = @Content(schema = @Schema(implementation = Product.class))),
             @ApiResponse(responseCode = "404", description = "상품 없음")
     })
-    public Product getById(@PathVariable UUID id){
+    public Product getById(@PathVariable Long id){
         return productQueryUseCase.getById(id);
     }
 
@@ -109,7 +101,7 @@ public class ProductController {
     @PostMapping("/{id}/images")
     @Operation(summary = "상품 이미지 업로드", description = "상품에 이미지를 등록합니다. 최대 5장")
     public ResponseEntity<List<String>> uploadImages(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @RequestParam("images") List<MultipartFile> images) throws IOException {
         List<String> urls = productImageService.uploadImages(id, images);
         return ResponseEntity.status(HttpStatus.CREATED).body(urls);

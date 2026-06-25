@@ -8,8 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -17,19 +15,19 @@ public class ProductStockService {
 
     private final ProductRepository productRepository;
 
-    public void deductStock(UUID productId, int quantity) {
+    public void deductStock(Long productId, int quantity) {
         Product product = findProduct(productId);
         product.deductStock(quantity);
         productRepository.save(product);
     }
 
-    public void restoreStock(UUID productId, int quantity) {
+    public void restoreStock(Long productId, int quantity) {
         Product product = findProduct(productId);
         product.restoreStock(quantity);
         productRepository.save(product);
     }
 
-    private Product findProduct(UUID productId) {
+    private Product findProduct(Long productId) {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다."));
     }

@@ -8,7 +8,6 @@ import com.biddy.productservice.domain.model.SaleType;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 
 @Repository
@@ -22,7 +21,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
         return productJpaRepository.save(product);
     }
     @Override
-    public Optional<Product> findById(UUID id){
+    public Optional<Product> findById(Long id){
         return productJpaRepository.findById(id);
     }
     @Override
@@ -50,5 +49,5 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
-    public List<Product> findAllById(List<UUID> ids) { return productJpaRepository.findAllById(ids); }
+    public List<Product> findAllById(List<Long> ids) { return productJpaRepository.findAllById(ids); }
 }

@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -21,7 +20,7 @@ public class ProductQueryService implements ProductQueryUseCase {
     private final ProductRepository productRepository;
 
     @Override
-    public Product getById(UUID id){
+    public Product getById(Long id){
         return productRepository.findById(id)
                 .orElseThrow( ()-> new ResponseStatusException(HttpStatus.NOT_FOUND,"상품을 찾을 수 없습니다."));
     }
@@ -35,5 +34,5 @@ public class ProductQueryService implements ProductQueryUseCase {
         return productRepository.findBySaleType(saleType);
     }
 
-    public List<Product> getProductsByIds(List<UUID> ids){ return productRepository.findAllById(ids); }
+    public List<Product> getProductsByIds(List<Long> ids){ return productRepository.findAllById(ids); }
 }

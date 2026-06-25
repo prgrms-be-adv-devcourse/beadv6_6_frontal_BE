@@ -4,16 +4,15 @@ import com.biddy.productservice.domain.model.Product;
 import com.biddy.productservice.domain.model.SaleType;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface ProductQueryUseCase {
 
-    Product getById(UUID id);
+    Product getById(Long id);
 
     List<Product> getAll();
 
     List<Product> getBySaleType(SaleType saleType);
 
-    List<Product> getProductsByIds(List<UUID> ids);
+    List<Product> getProductsByIds(List<Long> ids);
 
 }
