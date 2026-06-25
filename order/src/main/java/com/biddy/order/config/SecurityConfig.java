@@ -1,6 +1,6 @@
 package com.biddy.order.config;
 
-import com.biddy.common.security.HeaderAuthenticationFilter;
+
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -41,13 +41,14 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/health"
+                                "/actuator/health",
+                                "/api/orders/**"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
-                        new HeaderAuthenticationFilter(),
+                        new OrderHeaderAuthenticationFilter(),
                         UsernamePasswordAuthenticationFilter.class
                 );
 

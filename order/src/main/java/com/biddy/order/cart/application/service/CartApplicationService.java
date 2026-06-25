@@ -51,26 +51,25 @@ public class CartApplicationService implements CartUseCase {
         List<UUID> productIds = carts.stream()
                 .map(Cart::getProductId)
                 .toList();
-        // 3. RestTemplate을 가지고 상품 서버(8082포트) API 직접 호출
-        String baseUrl = productServiceUrl + "/api/v1/products/";
-        List<ProductResponse> products = productIds.stream()
-                .map(id -> {
-                    try {
-                        String url = baseUrl + id;
-                        return restTemplate.getForObject(url, ProductResponse.class);
-                    } catch (Exception e) {
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .toList();
+        // 3. RestTemplate을 가지고 상품 서버(8082포트) /details API 직접 호출
+        List<ProductInfoResponse> products = List.of();
+        try {
+            String url = productServiceUrl + "/api/v1/products/details";
+            ProductIdsRequest requestBody = new ProductIdsRequest(productIds);
+            ProductInfoResponse[] response = restTemplate.postForObject(url, requestBody, ProductInfoResponse[].class);
+            if (response != null) {
+                products = Arrays.asList(response);
+            }
+        } catch (Exception e) {
+            // 상품 조회 실패시 빈 리스트로 처리
+        }
         // 4. 상품 ID를 Key로 하는 Map으로 가공 (빠른 매칭을 위해)
-        Map<UUID, ProductResponse> productMap = products.stream()
-                .collect(Collectors.toMap(ProductResponse::productId, p -> p));
+        Map<UUID, ProductInfoResponse> productMap = products.stream()
+                .collect(Collectors.toMap(ProductInfoResponse::productId, p -> p));
         // 5. 장바구니 리스트와 상품 정보를 결합하여 반환
         return carts.stream()
                 .map(cart -> {
-                    ProductResponse product = productMap.get(cart.getProductId());
+                    ProductInfoResponse product = productMap.get(cart.getProductId());
                     return new CartResult(
                             cart.getId(),
                             cart.getUserId(),
@@ -78,19 +77,23 @@ public class CartApplicationService implements CartUseCase {
                             product != null ? product.name() : "알 수 없는 상품",
                             product != null ? product.price() : BigDecimal.valueOf(0.0),
                             product != null ? product.status() : "UNKNOWN",
-                            product != null ? product.userId() : null, // 판매자 ID
+                            product != null && product.sellerId() != null ? product.sellerId().getMostSignificantBits() : null, // 판매자 ID
                             cart.getCreatedAt()
                     );
                 })
                 .toList();
     }
 
-    public record ProductResponse(
+    public record ProductIdsRequest(
+            List<UUID> productIds
+    ) {}
+
+    public record ProductInfoResponse(
             UUID productId,
             String name,
             BigDecimal price,
             String status,
-            Long userId
+            UUID sellerId
     ) {}
 
     @Override
