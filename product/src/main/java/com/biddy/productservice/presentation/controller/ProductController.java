@@ -69,7 +69,8 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "상품 없음")
     })
     public ResponseEntity<Void> delete(@PathVariable Long id){
-        productCommandUseCase.delete(id);
+        Long memberId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        productCommandUseCase.delete(id, memberId);
         return ResponseEntity.noContent().build();
     }
 
