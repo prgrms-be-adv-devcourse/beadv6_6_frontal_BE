@@ -3,7 +3,6 @@ package com.biddy.order.order.presentation.dto.response;
 import com.biddy.order.order.application.dto.OrderResult;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 public record OrderResponse(
         Long id,
@@ -17,7 +16,7 @@ public record OrderResponse(
             Long id,
             Long orderPrice,
             Integer quantity,
-            UUID productId,
+            Long productId,
             Long sellerId,
             LocalDateTime createdAt
     ) {}

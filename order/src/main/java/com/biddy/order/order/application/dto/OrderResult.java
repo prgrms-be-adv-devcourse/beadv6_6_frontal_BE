@@ -2,7 +2,6 @@ package com.biddy.order.order.application.dto;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 public record OrderResult(
         Long id,
@@ -17,7 +16,7 @@ public record OrderResult(
             Long id,
             Long orderPrice,
             Integer quantity,
-            UUID productId,
+            Long productId,
             Long sellerId,
             LocalDateTime createdAt
     ) {}

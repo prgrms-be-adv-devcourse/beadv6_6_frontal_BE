@@ -14,9 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.UUID;
-
-
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -28,7 +25,7 @@ public class ProductCommandService implements ProductCommandUseCase {
     // event 추가
     @Override
     public Product create(ProductCreateRequest request, Long memberId){
-        Product product = Product.create(memberId,request.name(),request.description(),
+        Product product = Product.create(memberId, request.name(), request.description(),
                 request.price(),request.stock(),request.status(),request.category(),
                 request.saleType(),request.brand(),memberId);
 
@@ -44,7 +41,7 @@ public class ProductCommandService implements ProductCommandUseCase {
     }
 
     @Override
-    public Product update(UUID id, ProductUpdateRequest request, Long memberId){
+    public Product update(Long id, ProductUpdateRequest request, Long memberId){
         Product product = productRepository.findById(id)
                 .orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND,"상품을 찾을 수 없습니다."));
 
@@ -53,7 +50,7 @@ public class ProductCommandService implements ProductCommandUseCase {
         return productRepository.save(product);
     }
     @Override
-    public void delete (UUID id){
+    public void delete (Long id){
         Product product = productRepository.findById(id)
                 .orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND,"상품을 찾을 수 없습니다."));
 

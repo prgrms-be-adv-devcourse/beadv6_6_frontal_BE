@@ -28,7 +28,7 @@ public class ProductImageService {
     private String baseUrl;
 
     @Transactional
-    public List<String> uploadImages(UUID productId, List<MultipartFile> files) throws IOException {
+    public List<String> uploadImages(Long productId, List<MultipartFile> files) throws IOException {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
 

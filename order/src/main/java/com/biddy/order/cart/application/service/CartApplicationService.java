@@ -28,7 +28,7 @@ public class CartApplicationService implements CartUseCase {
 
     @Override
     @Transactional
-    public CartResult addItemToCart(Long userId, UUID productId) {
+    public CartResult addItemToCart(Long userId, Long productId) {
         //1. 중복확인
         cartRepository.findByUserIdAndProductId(userId, productId)
                 .ifPresent(existingCart -> {
@@ -47,8 +47,8 @@ public class CartApplicationService implements CartUseCase {
         if (carts.isEmpty()) {
             return List.of();
         }
-        // 2. 장바구니 내 상품들의 UUID 리스트 추출
-        List<UUID> productIds = carts.stream()
+        // 2. 장바구니 내 상품들의 ID 리스트 추출
+        List<Long> productIds = carts.stream()
                 .map(Cart::getProductId)
                 .toList();
         // 3. RestTemplate을 가지고 상품 서버(8082포트) /details API 직접 호출
@@ -64,7 +64,7 @@ public class CartApplicationService implements CartUseCase {
             // 상품 조회 실패시 빈 리스트로 처리
         }
         // 4. 상품 ID를 Key로 하는 Map으로 가공 (빠른 매칭을 위해)
-        Map<UUID, ProductInfoResponse> productMap = products.stream()
+        Map<Long, ProductInfoResponse> productMap = products.stream()
                 .collect(Collectors.toMap(ProductInfoResponse::productId, p -> p));
         // 5. 장바구니 리스트와 상품 정보를 결합하여 반환
         return carts.stream()
@@ -77,7 +77,7 @@ public class CartApplicationService implements CartUseCase {
                             product != null ? product.name() : "알 수 없는 상품",
                             product != null ? product.price() : BigDecimal.valueOf(0.0),
                             product != null ? product.status() : "UNKNOWN",
-                            product != null && product.sellerId() != null ? product.sellerId().getMostSignificantBits() : null, // 판매자 ID
+                            product != null ? product.sellerId() : null, // 판매자 ID
                             cart.getCreatedAt()
                     );
                 })
@@ -85,15 +85,15 @@ public class CartApplicationService implements CartUseCase {
     }
 
     public record ProductIdsRequest(
-            List<UUID> productIds
+            List<Long> productIds
     ) {}
 
     public record ProductInfoResponse(
-            UUID productId,
+            Long productId,
             String name,
             BigDecimal price,
             String status,
-            UUID sellerId
+            Long sellerId
     ) {}
 
     @Override

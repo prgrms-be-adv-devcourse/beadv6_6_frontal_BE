@@ -49,19 +49,17 @@ public class OrderEventPublisher {
     }
 
     // 3. 재고차감 이벤트 발행 (수신처: product)
-    public void publishDecreaseStock(Long orderId, UUID productId, Integer quantity) {
+    public void publishDecreaseStock(Long orderId, Long productId, Integer quantity) {
         String topic = "order.stock.deduct";
-        UUID orderUuid = new UUID(0L, orderId);
-        DecreaseStockEvent event = new DecreaseStockEvent(orderUuid, productId, quantity);
-        send(topic, productId.toString(), event);
+        DecreaseStockEvent event = new DecreaseStockEvent(orderId, productId, quantity);
+        send(topic, String.valueOf(productId), event);
     }
 
     // 4. 재고원복 이벤트 발행 (수신처: product)
-    public void publishRestoreStock(Long orderId, UUID productId, Integer quantity) {
+    public void publishRestoreStock(Long orderId, Long productId, Integer quantity) {
         String topic = "order.stock.restore";
-        UUID orderUuid = new UUID(0L, orderId);
-        RestoreStockEvent event = new RestoreStockEvent(orderUuid, productId, quantity);
-        send(topic, productId.toString(), event);
+        RestoreStockEvent event = new RestoreStockEvent(orderId, productId, quantity);
+        send(topic, String.valueOf(productId), event);
     }
 
     private void send(String topic, String key, Object event) {
