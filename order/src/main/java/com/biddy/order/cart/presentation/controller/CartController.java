@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/cart")
+@RequestMapping("${api.init}/cart")
 @RequiredArgsConstructor
 public class CartController {
 
