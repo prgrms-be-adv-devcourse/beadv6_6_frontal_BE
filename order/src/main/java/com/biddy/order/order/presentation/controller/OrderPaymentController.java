@@ -26,7 +26,7 @@ public class OrderPaymentController {
                 result.sellerId(),    // sellerId
                 result.totalPrice(),  // amount
                 result.status(),
-                result.updatedAt()    // paymentDueAt
+                result.paymentDueAt() // paymentDueAt
         ));
     }
 

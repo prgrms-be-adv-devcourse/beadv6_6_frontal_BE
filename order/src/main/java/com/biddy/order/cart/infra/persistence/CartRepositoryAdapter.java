@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -26,15 +25,14 @@ public class CartRepositoryAdapter implements CartRepository {
     }
 
     @Override
-    public Optional<Cart> findByUserIdAndProductId(Long userId, UUID productId) {
-        return cartJpaRepository.findByUserIdAndProductId(userId,productId);
+    public Optional<Cart> findByUserIdAndProductId(Long userId, Long productId) {
+        return cartJpaRepository.findByUserIdAndProductId(userId, productId);
     }
 
     @Override
-    public void deleteByUserIdAndProductId(Long userId, UUID productId) {
-        cartJpaRepository.deleteByUserIdAndProductId(userId,productId); // JPA 호출
+    public void deleteByUserIdAndProductId(Long userId, Long productId) {
+        cartJpaRepository.deleteByUserIdAndProductId(userId, productId); // JPA 호출
     }
-
 
     @Override
     public Cart save(Cart cart) {
@@ -45,6 +43,7 @@ public class CartRepositoryAdapter implements CartRepository {
     public void delete(Cart cart) {
         cartJpaRepository.delete(cart);
     }
+
     @Override
     public Optional<Cart> findById(Long id) {
         return cartJpaRepository.findById(id); // JPA 내장 findById 호출

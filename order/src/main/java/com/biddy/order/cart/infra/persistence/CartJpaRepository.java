@@ -4,7 +4,6 @@ import com.biddy.order.cart.domain.model.Cart;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.Optional;
 
 public interface CartJpaRepository extends JpaRepository<Cart, Long> {
@@ -13,8 +12,7 @@ public interface CartJpaRepository extends JpaRepository<Cart, Long> {
 
     void deleteByUserId(Long userId);
 
-    void deleteByUserIdAndProductId(Long userId, UUID productId);
+    void deleteByUserIdAndProductId(Long userId, Long productId);
 
-    Optional<Cart> findByUserIdAndProductId(Long userId, UUID productId);
-
+    Optional<Cart> findByUserIdAndProductId(Long userId, Long productId);
 }

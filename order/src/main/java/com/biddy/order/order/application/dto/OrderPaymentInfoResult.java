@@ -8,5 +8,5 @@ public record OrderPaymentInfoResult(
         Long sellerId,
         Long totalPrice,
         String status,
-        LocalDateTime updatedAt
+        LocalDateTime paymentDueAt
 ) {}
