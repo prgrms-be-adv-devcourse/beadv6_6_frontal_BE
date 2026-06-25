@@ -14,6 +14,8 @@ public interface ProductRepository {
 
     List<Product> findAll();
 
+    List<Product> findAllVisible();
+
     void delete(Product product);
 
     List<Product> findBySellerId(Long sellerId);
@@ -21,6 +23,8 @@ public interface ProductRepository {
     List<Product> saveAll(List<Product> products);
 
     List<Product> findBySaleType(SaleType saleType);
+
+    List<Product> findBySaleTypeVisible(SaleType saleType);
 
     List<Product> findAllById(List<Long> ids);
 }

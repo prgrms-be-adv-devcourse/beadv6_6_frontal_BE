@@ -28,6 +28,11 @@ public class ProductRepositoryAdapter implements ProductRepository {
     public List<Product> findAll(){
         return productJpaRepository.findAll();
     }
+
+    @Override
+    public List<Product> findAllVisible(){
+        return productJpaRepository.findAllVisible();
+    }
     @Override
     public void delete(Product product){
         productJpaRepository.delete(product);
@@ -46,6 +51,11 @@ public class ProductRepositoryAdapter implements ProductRepository {
     @Override
     public List<Product> findBySaleType(SaleType saleType){
         return productJpaRepository.findBySaleType(saleType);
+    }
+
+    @Override
+    public List<Product> findBySaleTypeVisible(SaleType saleType){
+        return productJpaRepository.findBySaleTypeVisible(saleType);
     }
 
     @Override

@@ -26,12 +26,12 @@ public class ProductQueryService implements ProductQueryUseCase {
     }
     @Override
     public List<Product> getAll(){
-        return productRepository.findAll();
+        return productRepository.findAllVisible();
     }
 
     @Override
     public List<Product> getBySaleType(SaleType saleType){
-        return productRepository.findBySaleType(saleType);
+        return productRepository.findBySaleTypeVisible(saleType);
     }
 
     public List<Product> getProductsByIds(List<Long> ids){ return productRepository.findAllById(ids); }
