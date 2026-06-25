@@ -11,7 +11,7 @@ public class OrderClient {
 
     public OrderClient(
             RestClient.Builder restClientBuilder,
-            @Value("${biddy.client.order-service-url:http://order-service}") String orderServiceUrl
+            @Value("${biddy.client.order-service-url:http://localhost:8083}") String orderServiceUrl
     ) {
         this.restClient = restClientBuilder
                 .baseUrl(orderServiceUrl)
@@ -25,10 +25,11 @@ public class OrderClient {
                 .body(OrderPaymentInfo.class);
     }
 
-    public void requestPaymentProcessing(Long orderId, Long buyerId) {
+    public void requestPaymentProcessing(Long orderId, Long buyerId, String memberRole) {
         restClient.patch()
                 .uri("/api/orders/{orderId}/payment-processing", orderId)
-                .body(new OrderPaymentProcessingRequest(buyerId))
+                .header("X-Member-Id", String.valueOf(buyerId))
+                .header("X-Member-Role", memberRole)
                 .retrieve()
                 .toBodilessEntity();
     }

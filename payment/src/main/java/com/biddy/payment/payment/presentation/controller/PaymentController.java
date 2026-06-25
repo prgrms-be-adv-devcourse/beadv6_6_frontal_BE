@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,9 +28,13 @@ public class PaymentController {
     @PostMapping
     public ApiResponse<PaymentResponse> create(
             @AuthenticationPrincipal Long memberId,
+            @RequestHeader("X-Member-Role") String memberRole,
             @Valid @RequestBody PaymentCreateRequest request
     ) {
-        return ApiResponse.ok(paymentService.create(request.withUserId(memberId)), "결제가 생성되었습니다.");
+        return ApiResponse.ok(
+                paymentService.create(request.withUserId(memberId), memberRole),
+                "결제가 생성되었습니다."
+        );
     }
 
     @GetMapping("/{id}")

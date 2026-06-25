@@ -204,6 +204,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      ORDER_SERVICE_URL: http://order:8083
 
 volumes:
   postgres-data:

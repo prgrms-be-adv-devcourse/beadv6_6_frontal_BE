@@ -73,13 +73,13 @@ class PaymentServiceTest {
                 null,
                 null,
                 null
-        ));
+        ), "USER");
 
         assertThat(response.status()).isEqualTo(PaymentStatus.COMPLETED);
         DepositBalanceResponse balance = depositService.getBalance(buyerId);
         assertThat(balance.balance()).isEqualTo(50_000L);
 
-        verify(orderClient).requestPaymentProcessing(eq(orderId), eq(buyerId));
+        verify(orderClient).requestPaymentProcessing(eq(orderId), eq(buyerId), eq("USER"));
 
         ArgumentCaptor<PaymentCompletedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCompletedEvent.class);
         verify(paymentEventProducer).publish(eventCaptor.capture());
@@ -123,12 +123,12 @@ class PaymentServiceTest {
                 null,
                 paymentKey,
                 tossOrderId
-        ));
+        ), "USER");
 
         assertThat(response.status()).isEqualTo(PaymentStatus.COMPLETED);
         assertThat(response.pgTransactionId()).isEqualTo(paymentKey);
 
-        verify(orderClient).requestPaymentProcessing(eq(orderId), eq(buyerId));
+        verify(orderClient).requestPaymentProcessing(eq(orderId), eq(buyerId), eq("USER"));
         verify(tossPaymentClient).confirm(eq(paymentKey), eq(tossOrderId), eq(amount));
 
         ArgumentCaptor<PaymentCompletedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCompletedEvent.class);
@@ -170,7 +170,7 @@ class PaymentServiceTest {
                 null,
                 null,
                 null
-        ));
+        ), "USER");
         Mockito.clearInvocations(paymentEventProducer);
 
         paymentService.cancelByOrderCancellation(new OrderCancelledEvent(
@@ -224,7 +224,7 @@ class PaymentServiceTest {
                 null,
                 paymentKey,
                 tossOrderId
-        ));
+        ), "USER");
         Mockito.clearInvocations(paymentEventProducer);
 
         paymentService.cancelByOrderCancellation(new OrderCancelledEvent(
