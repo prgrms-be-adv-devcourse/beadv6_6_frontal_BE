@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "order_info")
@@ -29,7 +28,7 @@ public class OrderInfo {
     private Integer quantity; // 수량 추가
 
     @Column(name = "product_id", nullable = false)
-    private UUID productId;
+    private Long productId;
 
     @Column(name = "seller_id", nullable = false)
     private Long sellerId;
@@ -38,7 +37,7 @@ public class OrderInfo {
     private LocalDateTime createdAt;
 
     @Builder
-    public OrderInfo(Order order, Long orderPrice, Integer quantity, UUID productId, Long sellerId) {
+    public OrderInfo(Order order, Long orderPrice, Integer quantity, Long productId, Long sellerId) {
         this.order = order;
         this.orderPrice = orderPrice;
         this.quantity = quantity;

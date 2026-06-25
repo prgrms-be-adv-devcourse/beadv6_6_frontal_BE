@@ -138,7 +138,7 @@ public class OrderApplicationService implements OrderUseCase {
                 sellerId,
                 order.getTotalPrice(),
                 order.getStatus().name(),
-                order.getUpdatedAt()
+                order.getCreatedAt().plusMinutes(30)
         );
     }
 
