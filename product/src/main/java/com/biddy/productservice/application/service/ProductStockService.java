@@ -18,6 +18,9 @@ public class ProductStockService {
     public void deductStock(Long productId, int quantity) {
         Product product = findProduct(productId);
         product.deductStock(quantity);
+        if (product.getStock() == 0) {
+            product.changeStatus("SOLD_OUT");
+        }
         productRepository.save(product);
     }
 

@@ -21,8 +21,12 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/**").permitAll()  // 조회는 누구나
-                        .anyRequest().authenticated())                        // 등록/수정/삭제는 인증 필요
+                        // 로그인 필요한 GET (내 찜 목록)
+                        .requestMatchers(HttpMethod.GET, "/api/products/liked").authenticated()
+                        // 비로그인도 가능한 상품 조회
+                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                        // 나머지 (등록/수정/삭제/이미지업로드/찜하기 등)는 인증 필요
+                        .anyRequest().authenticated())
                 .addFilterBefore(new HeaderAuthenticationFilter(),
                         UsernamePasswordAuthenticationFilter.class);
 

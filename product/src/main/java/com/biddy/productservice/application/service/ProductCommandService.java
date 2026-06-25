@@ -33,7 +33,14 @@ public class ProductCommandService implements ProductCommandUseCase {
         //경매 상품이면 Auction 도메인에 발행
         if (savedProduct.getSaleType() == SaleType.AUCTION){
             eventProducer.sendAuctionRegistered(
-                    new ProductRegisteredForAuctionEvent(savedProduct.getId())
+                    new ProductRegisteredForAuctionEvent(
+                            savedProduct.getId(),
+                            savedProduct.getSellerId(),
+                            request.startPrice(),
+                            request.minIncrement(),
+                            request.startsAt(),
+                            request.endsAt()
+                    )
             );
         }
         return savedProduct;
@@ -45,14 +52,23 @@ public class ProductCommandService implements ProductCommandUseCase {
         Product product = productRepository.findById(id)
                 .orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND,"상품을 찾을 수 없습니다."));
 
+        if (!product.getSellerId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인의 상품만 수정할 수 있습니다.");
+        }
+
         product.update(request.name(),request.description(),request.price(),request.stock(),
                 request.status(),request.category(),request.brand(),memberId);
         return productRepository.save(product);
     }
+
     @Override
-    public void delete (Long id){
+    public void delete(Long id, Long memberId){
         Product product = productRepository.findById(id)
                 .orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND,"상품을 찾을 수 없습니다."));
+
+        if (!product.getSellerId().equals(memberId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인의 상품만 삭제할 수 있습니다.");
+        }
 
         productRepository.delete(product);
     }
