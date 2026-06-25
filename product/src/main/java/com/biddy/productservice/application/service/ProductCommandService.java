@@ -25,7 +25,7 @@ public class ProductCommandService implements ProductCommandUseCase {
     // event 추가
     @Override
     public Product create(ProductCreateRequest request, Long memberId){
-        Product product = Product.create(memberId, request.sellerNickname(), request.name(), request.description(),
+        Product product = Product.create(memberId, request.name(), request.description(),
                 request.price(),request.stock(),request.status(),request.category(),
                 request.saleType(),request.brand(),memberId);
 

@@ -76,20 +76,15 @@ public class Product {
     @Schema(description = "판매자 ID", example = "1")
     private Long sellerId;
 
-    @Column(name = "seller_nickname", length = 50)
-    @Schema(description = "판매자 닉네임", example = "기황")
-    private String sellerNickname;
-
     @Column(name = "reg_id",nullable = false)
     @Schema(description = "등록자 ID", example = "1")
     private Long regId;
 
     protected Product(){}
 
-    private Product(Long sellerId, String sellerNickname, String name, String description, BigDecimal price, int stock, String status, String category,
+    private Product(Long sellerId, String name, String description, BigDecimal price, int stock, String status, String category,
                     SaleType saleType, String brand) {
         this.sellerId = sellerId;
-        this.sellerNickname = sellerNickname;
         this.name = name;
         this.description = description;
         this.price = price;
@@ -100,11 +95,11 @@ public class Product {
         this.brand = brand;
     }
 
-    public static Product create(Long sellerId, String sellerNickname, String name, String description, BigDecimal price,
+    public static Product create(Long sellerId, String name, String description, BigDecimal price,
                                  int stock, String status, String category,
                                  SaleType saleType, String brand, Long creatorId)
     {
-        Product product = new Product(sellerId, sellerNickname, name, description, price,
+        Product product = new Product(sellerId, name, description, price,
                 stock, status, category, saleType, brand);
         product.regId = creatorId;
         product.modifyId = creatorId;
