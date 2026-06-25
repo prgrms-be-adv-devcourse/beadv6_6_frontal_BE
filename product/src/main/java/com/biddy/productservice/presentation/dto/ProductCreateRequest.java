@@ -31,6 +31,9 @@ public record ProductCreateRequest(
         SaleType saleType,
 
         @Schema(description = "브랜드",example = "나이키")
-        String brand
+        String brand,
+
+        @Schema(description = "판매자 닉네임",example = "기황")
+        String sellerNickname
 ) {
 }

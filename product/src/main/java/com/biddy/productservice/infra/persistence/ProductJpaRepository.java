@@ -5,10 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.biddy.productservice.domain.model.SaleType;
 import java.util.List;
 
-import java.util.UUID;
 
-
-public interface ProductJpaRepository extends JpaRepository<Product, UUID> {
+public interface ProductJpaRepository extends JpaRepository<Product, Long> {
     List<Product> findBySellerId(Long sellerId);
 
     List<Product> findBySaleType(SaleType saleType);

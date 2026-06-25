@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Getter
@@ -18,8 +17,9 @@ import java.util.UUID;
 public class Product {
 
     @Id
-    @Schema(description = "상품 ID", example = "11111111-1111-1111-1111-111111111111", accessMode = Schema.AccessMode.READ_ONLY)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Schema(description = "상품 ID", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
+    private Long id;
 
     @Column(name = "\"name\"",nullable = false,length = 255)
     @Schema(description = "상품명", example = "홍길동 판매소")
@@ -76,16 +76,20 @@ public class Product {
     @Schema(description = "판매자 ID", example = "1")
     private Long sellerId;
 
+    @Column(name = "seller_nickname", length = 50)
+    @Schema(description = "판매자 닉네임", example = "기황")
+    private String sellerNickname;
+
     @Column(name = "reg_id",nullable = false)
     @Schema(description = "등록자 ID", example = "1")
     private Long regId;
 
     protected Product(){}
 
-    private Product(UUID id, Long sellerId, String name, String description, BigDecimal price, int stock, String status, String category,
+    private Product(Long sellerId, String sellerNickname, String name, String description, BigDecimal price, int stock, String status, String category,
                     SaleType saleType, String brand) {
-        this.id = id;
         this.sellerId = sellerId;
+        this.sellerNickname = sellerNickname;
         this.name = name;
         this.description = description;
         this.price = price;
@@ -96,13 +100,12 @@ public class Product {
         this.brand = brand;
     }
 
-    // Id는 randomUUID로 내부 생성
-    public static Product create(Long sellerId, String name, String description, BigDecimal price,
+    public static Product create(Long sellerId, String sellerNickname, String name, String description, BigDecimal price,
                                  int stock, String status, String category,
                                  SaleType saleType, String brand, Long creatorId)
     {
-        Product product = new Product(UUID.randomUUID(),sellerId,name,description,price,
-                stock,status,category,saleType,brand);
+        Product product = new Product(sellerId, sellerNickname, name, description, price,
+                stock, status, category, saleType, brand);
         product.regId = creatorId;
         product.modifyId = creatorId;
         return product;
@@ -142,7 +145,6 @@ public class Product {
     }
     @PrePersist
     public void onCreate(){
-        if (id == null) {id = UUID.randomUUID();}
         if (regDt == null) { regDt = LocalDateTime.now();}
         if (modifyDt == null) { modifyDt = regDt;}
         if (status == null) { status = "ACTIVE";}
