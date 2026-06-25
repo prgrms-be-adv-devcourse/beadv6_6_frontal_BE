@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Schema(description = "상품 생성 정보")
 public record ProductCreateRequest(
@@ -31,6 +32,19 @@ public record ProductCreateRequest(
         SaleType saleType,
 
         @Schema(description = "브랜드",example = "나이키")
-        String brand
+        String brand,
+
+        // 경매 전용 필드 (saleType=AUCTION일 때만 필요)
+        @Schema(description = "경매 시작가", example = "5000")
+        BigDecimal startPrice,
+
+        @Schema(description = "최소 입찰 단위", example = "500")
+        Integer minIncrement,
+
+        @Schema(description = "경매 시작일시", example = "2026-06-25T14:00:00")
+        LocalDateTime startsAt,
+
+        @Schema(description = "경매 종료일시", example = "2026-06-30T14:00:00")
+        LocalDateTime endsAt
 ) {
 }

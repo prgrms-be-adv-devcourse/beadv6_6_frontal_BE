@@ -57,14 +57,14 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentResponse create(PaymentCreateRequest request) {
+    public PaymentResponse create(PaymentCreateRequest request, String memberRole) {
         if (paymentRepository.existsByOrderIdAndStatus(request.orderId(), PaymentStatus.COMPLETED)) {
             throw new IllegalStateException("이미 결제가 완료된 주문입니다.");
         }
 
         OrderPaymentInfo order = orderClient.getPaymentInfo(request.orderId());
         validateOrderPayment(request, order);
-        orderClient.requestPaymentProcessing(order.orderId(), order.buyerId());
+        orderClient.requestPaymentProcessing(order.orderId(), order.buyerId(), memberRole);
 
         Payment payment = paymentRepository.save(Payment.create(
                 order.orderId(),
