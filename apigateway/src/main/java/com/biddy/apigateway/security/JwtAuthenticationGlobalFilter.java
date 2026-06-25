@@ -37,25 +37,20 @@ public class JwtAuthenticationGlobalFilter implements GlobalFilter, Ordered {
 
         String token = resolveToken(exchange.getRequest());
 
-        // 토큰이 있는데 유효하지 않으면 → 401
-        if (token != null && !jwtTokenProvider.validateToken(token)) {
+        if (token == null || !jwtTokenProvider.validateToken(token)) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
-        // 유효한 토큰이 있으면 → X-Member-Id 헤더 추가 후 전달
-        if (token != null) {
-            String memberId = jwtTokenProvider.getMemberId(token);
-            String role = jwtTokenProvider.getRole(token);
-            ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                    .header("X-Member-Id", memberId)
-                    .header("X-Member-Role", role)
-                    .build();
-            return chain.filter(exchange.mutate().request(mutatedRequest).build());
-        }
+        String memberId = jwtTokenProvider.getMemberId(token);
+        String role = jwtTokenProvider.getRole(token);
 
-        // 토큰 없으면 → 그냥 통과 (각 서비스 SecurityConfig에서 판단)
-        return chain.filter(exchange);
+        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                .header("X-Member-Id", memberId)
+                .header("X-Member-Role", role)
+                .build();
+
+        return chain.filter(exchange.mutate().request(mutatedRequest).build());
     }
 
     private boolean isWhitelisted(String path) {
