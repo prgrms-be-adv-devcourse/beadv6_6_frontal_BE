@@ -137,6 +137,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - product-images:/app/images
 
   order:
     build: ./order
@@ -211,3 +213,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  product-images:

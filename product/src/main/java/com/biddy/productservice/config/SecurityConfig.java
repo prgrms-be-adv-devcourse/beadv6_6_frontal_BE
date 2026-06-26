@@ -21,6 +21,8 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // 이미지 파일은 누구나 접근 가능
+                        .requestMatchers(HttpMethod.GET, "/images/**").permitAll()
                         // 로그인 필요한 GET (내 찜 목록)
                         .requestMatchers(HttpMethod.GET, "/api/products/liked").authenticated()
                         // 비로그인도 가능한 상품 조회
