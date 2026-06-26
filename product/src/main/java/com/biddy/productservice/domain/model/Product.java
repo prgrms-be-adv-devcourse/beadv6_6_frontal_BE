@@ -21,6 +21,10 @@ public class Product {
     @Schema(description = "상품 ID", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
+    @Version
+    @Column(name = "version", columnDefinition = "BIGINT DEFAULT 0")
+    private Long version = 0L;
+
     @Column(name = "\"name\"",nullable = false,length = 255)
     @Schema(description = "상품명", example = "홍길동 판매소")
     private String name;
