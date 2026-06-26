@@ -13,6 +13,7 @@ import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -60,6 +61,12 @@ public class DepositController {
     @GetMapping("/balance")
     public ApiResponse<DepositBalanceResponse> getBalance(@AuthenticationPrincipal Long memberId) {
         return ApiResponse.ok(depositService.getBalance(memberId));
+    }
+
+    // 관리자용: 특정 회원의 예치금 조회
+    @GetMapping("/{userId}/balance")
+    public ApiResponse<DepositBalanceResponse> getBalanceForAdmin(@PathVariable Long userId) {
+        return ApiResponse.ok(depositService.getBalance(userId));
     }
 
     @GetMapping("/transactions")
