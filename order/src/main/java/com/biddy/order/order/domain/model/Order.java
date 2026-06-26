@@ -50,6 +50,12 @@ public class Order {
 
     // 주문 상태 변경 메소드
     public void updateStatus(OrderStatus status) {
+        if (this.status == OrderStatus.COMPLETED || this.status == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("이미 완료되거나 취소된 주문은 상태를 변경할 수 없습니다.");
+        }
+        if (status == OrderStatus.COMPLETED && this.status != OrderStatus.PAID) {
+            throw new IllegalStateException("주문 완료(구매확정) 상태는 결제 완료(PAID) 상태에서만 전이될 수 있습니다.");
+        }
         this.status = status;
     }
 

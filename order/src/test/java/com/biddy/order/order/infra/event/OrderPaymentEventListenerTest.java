@@ -53,7 +53,7 @@ public class OrderPaymentEventListenerTest {
         sendTestMessage("payment.completed", "10", payload);
 
         // Then
-        verify(orderUseCase, timeout(5000)).changeStatus(eq(100L), eq(10L), eq(OrderStatus.COMPLETED));
+        verify(orderUseCase, timeout(5000)).changeStatus(eq(100L), eq(10L), eq(OrderStatus.PAID));
     }
 
     @Test

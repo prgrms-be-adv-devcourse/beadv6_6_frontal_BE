@@ -25,21 +25,29 @@ public class OrderHeaderAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String memberId = request.getHeader("X-Member-Id");
-        String role = request.getHeader("X-Member-Role");
+        try {
+            String memberId = request.getHeader("X-Member-Id");
+            String role = request.getHeader("X-Member-Role");
 
-        if (memberId != null) {
-            if (role == null) {
-                role = "USER";
+            if (memberId != null && !memberId.trim().isEmpty() && !"null".equalsIgnoreCase(memberId) && !"undefined".equalsIgnoreCase(memberId)) {
+                if (role == null || role.trim().isEmpty() || "null".equalsIgnoreCase(role) || "undefined".equalsIgnoreCase(role)) {
+                    role = "USER";
+                }
+                
+                String authorityName = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                Long.valueOf(memberId),
+                                null,
+                                List.of(new SimpleGrantedAuthority(authorityName))
+                        );
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                logger.info("Successfully authenticated request for memberId: " + memberId + " with role: " + authorityName);
             }
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            Long.valueOf(memberId),
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        } catch (Exception e) {
+            logger.error("Failed to parse authentication headers in OrderHeaderAuthenticationFilter: " + e.getMessage(), e);
         }
 
         filterChain.doFilter(request, response);
