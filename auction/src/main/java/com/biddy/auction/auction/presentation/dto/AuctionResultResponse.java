@@ -4,7 +4,6 @@ import com.biddy.auction.auction.application.dto.AuctionResultInfo;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 낙찰 결과 API 응답 DTO.
@@ -12,7 +11,7 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AuctionResultResponse(
         String auctionId,
-        UUID productId,
+        Long productId,
         String type,
         Long winnerId,
         Long winningBidId,

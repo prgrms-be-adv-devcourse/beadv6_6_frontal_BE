@@ -27,6 +27,9 @@ public enum ErrorCode {
     // 403 Forbidden
     SELF_BID_NOT_ALLOWED(HttpStatus.FORBIDDEN, "B003", "본인 경매에는 입찰할 수 없습니다"),
 
+    // 403 Forbidden
+    NOT_AUCTION_OWNER(HttpStatus.FORBIDDEN, "A004", "본인의 경매만 종료할 수 있습니다"),
+
     // 409 Conflict
     AUCTION_ALREADY_ENDED(HttpStatus.CONFLICT, "A002", "이미 종료된 경매입니다"),
     AUCTION_STILL_LIVE(HttpStatus.CONFLICT, "A003", "아직 진행 중인 경매입니다"),

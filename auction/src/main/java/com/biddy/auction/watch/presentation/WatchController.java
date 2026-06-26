@@ -8,11 +8,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 관심 경매 REST API Controller.
- */
+import java.util.Map;
+
 @Tag(name = "관심 경매", description = "관심 경매 등록/해제 토글 API")
 @RestController
 @RequestMapping("/api/v1/auctions/{auctionId}/watch")
@@ -21,11 +21,21 @@ public class WatchController {
 
     private final WatchUseCase watchUseCase;
 
-    @Operation(summary = "관심 경매 토글", description = "관심 등록 상태이면 해제, 미등록이면 등록한다. watcherCount가 함께 갱신된다.")
+    @Operation(summary = "관심 여부 확인")
+    @GetMapping
+    public ResponseEntity<Map<String, Boolean>> isWatching(
+            @PathVariable String auctionId,
+            @AuthenticationPrincipal Long memberId
+    ) {
+        boolean watching = watchUseCase.isWatching(auctionId, memberId);
+        return ResponseEntity.ok(Map.of("watching", watching));
+    }
+
+    @Operation(summary = "관심 경매 토글")
     @PostMapping
     public ResponseEntity<ToggleWatchResponse> toggleWatch(
             @Parameter(description = "경매 ID") @PathVariable String auctionId,
-            @Parameter(description = "회원 ID (인증 미구현, 헤더로 임시 전달)") @RequestHeader(value = "X-User-Id", defaultValue = "0") Long memberId
+            @AuthenticationPrincipal Long memberId
     ) {
         ToggleWatchResult result = watchUseCase.toggleWatch(auctionId, memberId);
         return ResponseEntity.ok(ToggleWatchResponse.from(result));

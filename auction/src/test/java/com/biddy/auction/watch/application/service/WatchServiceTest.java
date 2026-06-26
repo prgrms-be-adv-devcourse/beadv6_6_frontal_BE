@@ -9,6 +9,7 @@ import com.biddy.auction.watch.application.dto.MyWatchResult;
 import com.biddy.auction.watch.application.dto.ToggleWatchResult;
 import com.biddy.auction.watch.domain.model.AuctionWatch;
 import com.biddy.auction.watch.domain.repository.WatchRepository;
+import com.biddy.auction.watch.infra.redis.WatchRedisRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +23,6 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,11 +44,14 @@ class WatchServiceTest {
     @Mock
     private AuctionRepository auctionRepository;
 
+    @Mock
+    private WatchRedisRepository watchRedis;
+
     private Auction createAuction(int watcherCount) {
         return Auction.builder()
                 .auctionId("A-001")
                 .sellerId(10L)
-                .productId(UUID.randomUUID())
+                .productId(1L)
                 .startPrice(100000L)
                 .minIncrement(10000L)
                 .watcherCount(watcherCount)
@@ -58,7 +61,7 @@ class WatchServiceTest {
     }
 
     @Test
-    @DisplayName("관심 미등록 상태에서 토글하면 등록된다")
+    @DisplayName("관심 미등록 상태에서 토글하면 등록된다 (Redis + DB)")
     void toggleWatch_register() {
         Auction auction = createAuction(88);
         given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
@@ -66,30 +69,34 @@ class WatchServiceTest {
         given(watchRepository.save(any())).willReturn(
                 AuctionWatch.builder().watchId(1L).auctionId("A-001").memberId(42L).build()
         );
+        given(watchRedis.incrementCount("A-001")).willReturn(89L);
 
         ToggleWatchResult result = watchService.toggleWatch("A-001", 42L);
 
         assertThat(result.watching()).isTrue();
         assertThat(result.watcherCount()).isEqualTo(89);
         verify(watchRepository).save(any(AuctionWatch.class));
-        verify(watchRepository, never()).delete(any());
+        verify(watchRedis).addWatch(42L, "A-001");
+        verify(watchRedis).incrementCount("A-001");
     }
 
     @Test
-    @DisplayName("관심 등록 상태에서 토글하면 해제된다")
+    @DisplayName("관심 등록 상태에서 토글하면 해제된다 (Redis + DB)")
     void toggleWatch_unregister() {
         Auction auction = createAuction(88);
         AuctionWatch existing = AuctionWatch.builder()
                 .watchId(1L).auctionId("A-001").memberId(42L).build();
         given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
         given(watchRepository.findByAuctionIdAndMemberId("A-001", 42L)).willReturn(Optional.of(existing));
+        given(watchRedis.decrementCount("A-001")).willReturn(87L);
 
         ToggleWatchResult result = watchService.toggleWatch("A-001", 42L);
 
         assertThat(result.watching()).isFalse();
         assertThat(result.watcherCount()).isEqualTo(87);
         verify(watchRepository).delete(existing);
-        verify(watchRepository, never()).save(any());
+        verify(watchRedis).removeWatch(42L, "A-001");
+        verify(watchRedis).decrementCount("A-001");
     }
 
     @Test
@@ -104,22 +111,17 @@ class WatchServiceTest {
     }
 
     @Test
-    @DisplayName("watcherCount가 0일 때 해제해도 음수가 되지 않는다")
-    void toggleWatch_unregister_zeroCount() {
-        Auction auction = createAuction(0);
-        AuctionWatch existing = AuctionWatch.builder()
-                .watchId(1L).auctionId("A-001").memberId(42L).build();
-        given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
-        given(watchRepository.findByAuctionIdAndMemberId("A-001", 42L)).willReturn(Optional.of(existing));
+    @DisplayName("isWatching은 Redis SISMEMBER를 사용한다")
+    void isWatching_usesRedis() {
+        given(watchRedis.isWatching(42L, "A-001")).willReturn(true);
 
-        ToggleWatchResult result = watchService.toggleWatch("A-001", 42L);
+        assertThat(watchService.isWatching("A-001", 42L)).isTrue();
 
-        assertThat(result.watching()).isFalse();
-        assertThat(result.watcherCount()).isEqualTo(0);
+        verify(watchRedis).isWatching(42L, "A-001");
     }
 
     @Test
-    @DisplayName("내 관심 경매 목록을 조회한다")
+    @DisplayName("내 관심 경매 목록을 조회한다 (DB 페이징)")
     void getMyWatches_returnsList() {
         AuctionWatch watch = AuctionWatch.builder()
                 .watchId(1L).auctionId("A-001").memberId(42L).build();

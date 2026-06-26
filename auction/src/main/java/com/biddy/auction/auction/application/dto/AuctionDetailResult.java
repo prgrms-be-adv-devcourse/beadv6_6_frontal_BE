@@ -5,7 +5,6 @@ import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.bid.domain.model.Bid;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 경매 상세 조회 결과 DTO.
@@ -15,7 +14,7 @@ import java.util.UUID;
  */
 public record AuctionDetailResult(
         String auctionId,
-        UUID productId,
+        Long productId,
         Long sellerId,
         Long startPrice,
         Long minIncrement,
@@ -36,7 +35,8 @@ public record AuctionDetailResult(
     public record TopBidderInfo(Long bidderId, Long amount) {
     }
 
-    public static AuctionDetailResult from(Auction auction, Bid topBid) {
+    public static AuctionDetailResult from(Auction auction, Bid topBid,
+                                           boolean isWatching, int watcherCount, Long myHighestBid) {
         TopBidderInfo topBidder = topBid != null
                 ? new TopBidderInfo(topBid.getBidderId(), topBid.getAmount())
                 : null;
@@ -52,12 +52,12 @@ public record AuctionDetailResult(
                 auction.getStartsAt(),
                 auction.getEndsAt(),
                 auction.getStatus(),
-                auction.getWatcherCount(),
+                watcherCount,
                 auction.getWinnerId(),
                 auction.getWinningBidId(),
                 topBidder,
-                false,  // TODO: 인증 연동 후 사용자별 관심 여부 조회
-                null    // TODO: 인증 연동 후 사용자별 최고 입찰 조회
+                isWatching,
+                myHighestBid
         );
     }
 }

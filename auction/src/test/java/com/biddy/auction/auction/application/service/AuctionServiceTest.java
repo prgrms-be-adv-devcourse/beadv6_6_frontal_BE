@@ -11,6 +11,7 @@ import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
+import com.biddy.auction.watch.infra.redis.WatchRedisRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,6 @@ import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +44,9 @@ class AuctionServiceTest {
     @Mock
     private BidRepository bidRepository;
 
+    @Mock
+    private WatchRedisRepository watchRedis;
+
     @InjectMocks
     private AuctionService auctionService;
 
@@ -51,7 +54,7 @@ class AuctionServiceTest {
         return Auction.builder()
                 .auctionId(id)
                 .sellerId(1L)
-                .productId(UUID.randomUUID())
+                .productId(1L)
                 .startPrice(100000L)
                 .minIncrement(10000L)
                 .currentBid(currentBid)
@@ -191,8 +194,9 @@ class AuctionServiceTest {
             Bid topBid = createBid("A-001", 42L, 720000L);
             given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
             given(bidRepository.findTopByAuctionId("A-001")).willReturn(Optional.of(topBid));
+            given(watchRedis.getCount("A-001")).willReturn(10);
 
-            AuctionDetailResult result = auctionService.getAuctionDetail("A-001");
+            AuctionDetailResult result = auctionService.getAuctionDetail("A-001", null);
 
             assertThat(result.auctionId()).isEqualTo("A-001");
             assertThat(result.startPrice()).isEqualTo(100000L);
@@ -212,7 +216,7 @@ class AuctionServiceTest {
             given(auctionRepository.findById("A-002")).willReturn(Optional.of(auction));
             given(bidRepository.findTopByAuctionId("A-002")).willReturn(Optional.empty());
 
-            AuctionDetailResult result = auctionService.getAuctionDetail("A-002");
+            AuctionDetailResult result = auctionService.getAuctionDetail("A-002", null);
 
             assertThat(result.topBidder()).isNull();
             assertThat(result.isWatching()).isFalse();
@@ -224,7 +228,7 @@ class AuctionServiceTest {
         void withNonExistingAuction_throwsException() {
             given(auctionRepository.findById("INVALID")).willReturn(Optional.empty());
 
-            assertThatThrownBy(() -> auctionService.getAuctionDetail("INVALID"))
+            assertThatThrownBy(() -> auctionService.getAuctionDetail("INVALID", null))
                     .isInstanceOf(BusinessException.class)
                     .extracting(e -> ((BusinessException) e).getErrorCode())
                     .isEqualTo(ErrorCode.AUCTION_NOT_FOUND);

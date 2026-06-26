@@ -4,7 +4,6 @@ import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.bid.domain.model.Bid;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 경매 종료(낙찰) Kafka 이벤트 Payload.
@@ -18,7 +17,7 @@ public record AuctionEndedEventPayload(
         String eventType,
         LocalDateTime timestamp,
         String auctionId,
-        UUID productId,
+        Long productId,
         Long sellerId,
         Long finalBid,
         Long winnerId,

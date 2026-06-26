@@ -9,7 +9,9 @@ import com.biddy.auction.watch.application.dto.ToggleWatchResult;
 import com.biddy.auction.watch.application.usecase.WatchUseCase;
 import com.biddy.auction.watch.domain.model.AuctionWatch;
 import com.biddy.auction.watch.domain.repository.WatchRepository;
+import com.biddy.auction.watch.infra.redis.WatchRedisRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -20,23 +22,26 @@ import java.util.Optional;
 /**
  * 관심 경매 UseCase 구현체.
  *
- * <p>토글 방식으로 관심 등록/해제를 처리한다.
- * 이미 등록되어 있으면 해제, 없으면 등록한다.
- * Auction의 watcherCount도 함께 갱신한다.</p>
+ * <p>Write-Through 방식:
+ * <ul>
+ *   <li>POST(토글): Redis + DB 동시 기록</li>
+ *   <li>GET(조회): Redis에서만 조회 (O(1))</li>
+ * </ul></p>
+ *
+ * <p>Redis가 비었을 때(서버 재시작 등)는
+ * {@code WatchCacheWarmup}이 DB에서 복원한다.</p>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WatchService implements WatchUseCase {
 
     private final WatchRepository watchRepository;
     private final AuctionRepository auctionRepository;
+    private final WatchRedisRepository watchRedis;
 
     /**
-     * 관심 경매를 토글한다.
-     *
-     * @param auctionId 경매 ID
-     * @param memberId  회원 ID
-     * @return 토글 결과 (watching 상태, 갱신된 watcherCount)
+     * 관심 경매를 토글한다 (Write-Through: Redis + DB 동시 기록).
      */
     @Override
     @Transactional
@@ -47,40 +52,52 @@ public class WatchService implements WatchUseCase {
         Optional<AuctionWatch> existing = watchRepository.findByAuctionIdAndMemberId(auctionId, memberId);
 
         if (existing.isPresent()) {
+            // ─── 해제: DB + Redis 동시 ───
             watchRepository.delete(existing.get());
-            auction.decrementWatcherCount();
-            return new ToggleWatchResult(false, auction.getWatcherCount());
+            auction.decrementWatcherCount();          // DB 동기화
+            watchRedis.removeWatch(memberId, auctionId);
+            long count = watchRedis.decrementCount(auctionId);
+
+            log.info("관심 해제: memberId={}, auctionId={}, watcherCount={}", memberId, auctionId, count);
+            return new ToggleWatchResult(false, (int) count);
         } else {
+            // ─── 등록: DB + Redis 동시 ───
             AuctionWatch watch = AuctionWatch.builder()
                     .auctionId(auctionId)
                     .memberId(memberId)
                     .build();
             watchRepository.save(watch);
-            auction.incrementWatcherCount();
-            return new ToggleWatchResult(true, auction.getWatcherCount());
+            auction.incrementWatcherCount();           // DB 동기화
+            watchRedis.addWatch(memberId, auctionId);
+            long count = watchRedis.incrementCount(auctionId);
+
+            log.info("관심 등록: memberId={}, auctionId={}, watcherCount={}", memberId, auctionId, count);
+            return new ToggleWatchResult(true, (int) count);
         }
     }
 
     /**
-     * 내 관심 경매 목록을 페이징 조회한다.
-     *
-     * <p>관심 등록된 auctionId로 Auction 엔티티를 조회하여
-     * 현재 상태(현재가, 입찰 수 등)를 반환한다.</p>
-     *
-     * @param memberId 회원 ID
-     * @param page     페이지 번호
-     * @param size     페이지 크기
-     * @return 관심 경매 목록 (최신 등록순)
+     * 관심 여부 확인 — Redis SISMEMBER O(1).
+     */
+    @Override
+    public boolean isWatching(String auctionId, Long memberId) {
+        return watchRedis.isWatching(memberId, auctionId);
+    }
+
+    /**
+     * 내 관심 경매 목록 — DB 페이징 조회 (정렬/페이징이 필요하므로 DB 사용).
      */
     @Override
     @Transactional(readOnly = true)
     public Page<MyWatchResult> getMyWatches(Long memberId, int page, int size) {
         Page<AuctionWatch> watches = watchRepository.findByMemberId(memberId, PageRequest.of(page, size));
 
-        return watches.map(watch ->
-                auctionRepository.findById(watch.getAuctionId())
-                        .map(MyWatchResult::from)
-                        .orElse(null)
-        );
+        return watches.map(watch -> {
+            String aid = watch.getAuctionId();
+            int count = watchRedis.getCount(aid);
+            return auctionRepository.findById(aid)
+                    .map(auction -> MyWatchResult.from(auction, count))
+                    .orElse(null);
+        });
     }
 }

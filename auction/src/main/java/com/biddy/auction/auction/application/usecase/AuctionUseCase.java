@@ -17,8 +17,8 @@ public interface AuctionUseCase {
     /** 경매 피드 목록 조회 */
     Page<AuctionFeedResult> getAuctionFeed(AuctionFeedQuery query);
 
-    /** 경매 상세 조회 */
-    AuctionDetailResult getAuctionDetail(String auctionId);
+    /** 경매 상세 조회 (memberId가 있으면 관심 여부 포함) */
+    AuctionDetailResult getAuctionDetail(String auctionId, Long memberId);
 
     /**
      * 낙찰/유찰 결과를 조회한다.
@@ -28,4 +28,7 @@ public interface AuctionUseCase {
      * @return 낙찰(SOLD) 또는 유찰(UNSOLD) 결과
      */
     AuctionResultInfo getAuctionResult(String auctionId);
+
+    /** 판매자가 경매를 즉시 종료한다 */
+    void closeAuctionBySeller(String auctionId, Long sellerId);
 }

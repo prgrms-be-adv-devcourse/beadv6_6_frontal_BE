@@ -21,7 +21,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,7 +51,7 @@ class PlaceBidServiceTest {
         liveAuction = Auction.builder()
                 .auctionId("A-001")
                 .sellerId(10L)
-                .productId(UUID.randomUUID())
+                .productId(1L)
                 .startPrice(100000L)
                 .minIncrement(10000L)
                 .currentBid(500000L)
@@ -133,7 +132,7 @@ class PlaceBidServiceTest {
         @DisplayName("종료된 경매에 입찰하면 AUCTION_ALREADY_ENDED")
         void placeBid_auctionEnded() {
             Auction endedAuction = Auction.builder()
-                    .auctionId("A-001").sellerId(10L).productId(UUID.randomUUID())
+                    .auctionId("A-001").sellerId(10L).productId(1L)
                     .startPrice(100000L).minIncrement(10000L).currentBid(500000L)
                     .status(AuctionStatus.ENDED).endsAt(LocalDateTime.now().minusHours(1))
                     .build();
@@ -189,7 +188,7 @@ class PlaceBidServiceTest {
         @DisplayName("락 획득 후 경매가 종료되었으면 AUCTION_ALREADY_ENDED")
         void placeBid_endedAfterLock() {
             Auction endedAfterLock = Auction.builder()
-                    .auctionId("A-001").sellerId(10L).productId(UUID.randomUUID())
+                    .auctionId("A-001").sellerId(10L).productId(1L)
                     .startPrice(100000L).minIncrement(10000L).currentBid(500000L)
                     .status(AuctionStatus.ENDED).endsAt(LocalDateTime.now().minusSeconds(1))
                     .build();
@@ -213,7 +212,7 @@ class PlaceBidServiceTest {
             // 1차 검증 시점: currentBid=500000 → 520000 OK
             // 락 획득 후: currentBid=600000 → 520000 부족
             Auction updatedAuction = Auction.builder()
-                    .auctionId("A-001").sellerId(10L).productId(UUID.randomUUID())
+                    .auctionId("A-001").sellerId(10L).productId(1L)
                     .startPrice(100000L).minIncrement(10000L).currentBid(600000L)
                     .bidCount(6).status(AuctionStatus.LIVE).endsAt(LocalDateTime.now().plusHours(1))
                     .build();

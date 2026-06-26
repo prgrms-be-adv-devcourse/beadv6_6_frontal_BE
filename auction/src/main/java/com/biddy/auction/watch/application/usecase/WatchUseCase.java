@@ -27,4 +27,13 @@ public interface WatchUseCase {
      * @return 관심 경매 목록 (최신 등록순)
      */
     Page<MyWatchResult> getMyWatches(Long memberId, int page, int size);
+
+    /**
+     * 특정 경매에 대한 관심 등록 여부를 확인한다.
+     *
+     * @param auctionId 경매 ID
+     * @param memberId  회원 ID
+     * @return 관심 등록 여부
+     */
+    boolean isWatching(String auctionId, Long memberId);
 }

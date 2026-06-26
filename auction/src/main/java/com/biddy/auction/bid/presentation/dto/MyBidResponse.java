@@ -3,7 +3,6 @@ package com.biddy.auction.bid.presentation.dto;
 import com.biddy.auction.bid.application.dto.MyBidResult;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 내 입찰 참여 목록 API 응답 DTO.
@@ -11,7 +10,7 @@ import java.util.UUID;
  */
 public record MyBidResponse(
         String auctionId,
-        UUID productId,
+        Long productId,
         String status,
         Long currentBid,
         LocalDateTime endsAt,

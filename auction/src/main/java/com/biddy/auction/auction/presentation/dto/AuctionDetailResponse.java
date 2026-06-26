@@ -4,7 +4,6 @@ import com.biddy.auction.auction.application.dto.AuctionDetailResult;
 import com.biddy.auction.auction.domain.model.AuctionStatus;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 경매 상세 조회 API 응답 DTO.
@@ -13,7 +12,7 @@ import java.util.UUID;
  */
 public record AuctionDetailResponse(
         String auctionId,
-        UUID productId,
+        Long productId,
         Long sellerId,
         Long startPrice,
         Long minIncrement,
