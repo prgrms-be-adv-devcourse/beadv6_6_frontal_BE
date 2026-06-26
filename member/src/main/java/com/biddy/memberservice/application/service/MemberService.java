@@ -26,6 +26,13 @@ public class MemberService{
         return MemberResponse.from(member);
     }
 
+    @Transactional(readOnly = true)
+    public String getNickname(Long id) {
+        return memberRepository.findById(id)
+                .map(Member::getNickname)
+                .orElseThrow(() -> new IllegalArgumentException("해당 멤버를 찾을 수 없습니다: " + id));
+    }
+
     @Transactional
     public void updateNickname(Long memberId, String nickname) {
         if (memberRepository.existsByNickname(nickname)) {

@@ -3,6 +3,7 @@ package com.biddy.memberservice.presentation.controller;
 import com.biddy.memberservice.application.dto.request.UpdateNicknameRequest;
 import com.biddy.memberservice.application.dto.request.UpdatePasswordRequest;
 import com.biddy.memberservice.application.dto.response.MemberResponse;
+import com.biddy.memberservice.application.dto.response.NicknameResponse;
 import com.biddy.memberservice.application.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,5 +42,11 @@ public class MemberController {
     public ResponseEntity<Void> withdraw(@AuthenticationPrincipal Long memberId) {
         memberService.withdraw(memberId);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/nickname")
+    public ResponseEntity<NicknameResponse> getMemberNickname(@PathVariable Long id) {
+        String nickname = memberService.getNickname(id);
+        return ResponseEntity.ok(NicknameResponse.of(nickname));
     }
 }
