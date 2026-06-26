@@ -26,8 +26,8 @@ public class OrderPaymentEventListener {
         log.info("Received PaymentCompletedEvent: {}", payload);
         try {
             PaymentCompletedEvent event = objectMapper.readValue(payload, PaymentCompletedEvent.class);
-            orderUseCase.changeStatus(event.buyerId(), event.orderId(), OrderStatus.COMPLETED);
-            log.info("Order status updated to COMPLETED for orderId: {}", event.orderId());
+            orderUseCase.changeStatus(event.buyerId(), event.orderId(), OrderStatus.PAID);
+            log.info("Order status updated to PAID for orderId: {}", event.orderId());
         } catch (JsonProcessingException e) {
             log.error("Failed to deserialize PaymentCompletedEvent", e);
         } catch (Exception e) {
