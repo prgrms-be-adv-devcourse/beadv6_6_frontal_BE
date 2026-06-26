@@ -24,7 +24,6 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
         String role = request.getHeader("X-Member-Role");
 
         if (memberId != null && role != null) {
-            try {
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 Long.valueOf(memberId),
@@ -33,11 +32,6 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
                         );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (NumberFormatException e) {
-                // X-Member-Id가 숫자가 아니면 인증 미설정 상태로 진행시켜
-                // 뒤에서 401로 처리되게 한다 (필터 단계에서 500이 나가는 것을 방지).
-                SecurityContextHolder.clearContext();
-            }
         }
 
         filterChain.doFilter(request, response);
