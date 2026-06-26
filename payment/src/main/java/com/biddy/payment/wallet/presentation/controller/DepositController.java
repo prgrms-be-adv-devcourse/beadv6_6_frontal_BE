@@ -63,12 +63,6 @@ public class DepositController {
         return ApiResponse.ok(depositService.getBalance(memberId));
     }
 
-    // 관리자용: 특정 회원의 예치금 조회
-    @GetMapping("/{userId}/balance")
-    public ApiResponse<DepositBalanceResponse> getBalanceForAdmin(@PathVariable Long userId) {
-        return ApiResponse.ok(depositService.getBalance(userId));
-    }
-
     @GetMapping("/transactions")
     public ApiResponse<List<DepositTransactionResponse>> getTransactions(@AuthenticationPrincipal Long memberId) {
         return ApiResponse.ok(depositService.getTransactions(memberId));
