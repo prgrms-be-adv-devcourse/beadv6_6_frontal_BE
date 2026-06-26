@@ -17,7 +17,6 @@ import org.springframework.data.domain.Page;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +39,7 @@ class MyBidServiceTest {
 
     private Auction createAuction(String id, AuctionStatus status, Long currentBid, int bidCount) {
         return Auction.builder()
-                .auctionId(id).sellerId(10L).productId(UUID.randomUUID())
+                .auctionId(id).sellerId(10L).productId(1L)
                 .startPrice(100000L).minIncrement(10000L)
                 .currentBid(currentBid).bidCount(bidCount)
                 .status(status).watcherCount(0)

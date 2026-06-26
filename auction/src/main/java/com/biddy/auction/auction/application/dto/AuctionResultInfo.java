@@ -4,14 +4,13 @@ import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.bid.domain.model.Bid;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 낙찰/유찰 결과 DTO.
  */
 public record AuctionResultInfo(
         String auctionId,
-        UUID productId,
+        Long productId,
         String type,
         Long winnerId,
         Long winningBidId,

@@ -17,7 +17,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,7 +44,7 @@ class AuctionCloseSchedulerTest {
     private Auction createExpiredAuction(String id, int bidCount) {
         return Auction.builder()
                 .auctionId(id)
-                .productId(UUID.randomUUID())
+                .productId(1L)
                 .sellerId(10L)
                 .startPrice(100000L)
                 .minIncrement(10000L)

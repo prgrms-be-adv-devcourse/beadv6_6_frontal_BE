@@ -3,7 +3,6 @@ package com.biddy.auction.watch.application.dto;
 import com.biddy.auction.auction.domain.model.Auction;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 내 관심 경매 조회 결과 DTO.
@@ -11,7 +10,7 @@ import java.util.UUID;
  */
 public record MyWatchResult(
         String auctionId,
-        UUID productId,
+        Long productId,
         Long currentBid,
         Integer bidCount,
         LocalDateTime endsAt,
@@ -19,14 +18,14 @@ public record MyWatchResult(
         String status
 ) {
 
-    public static MyWatchResult from(Auction auction) {
+    public static MyWatchResult from(Auction auction, int watcherCount) {
         return new MyWatchResult(
                 auction.getAuctionId(),
                 auction.getProductId(),
                 auction.getCurrentBid(),
                 auction.getBidCount(),
                 auction.getEndsAt(),
-                auction.getWatcherCount(),
+                watcherCount,
                 auction.getStatus().name()
         );
     }

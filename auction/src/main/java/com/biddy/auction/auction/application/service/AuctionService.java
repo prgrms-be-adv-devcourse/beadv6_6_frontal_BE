@@ -7,11 +7,14 @@ import com.biddy.auction.auction.application.dto.AuctionResultInfo;
 import com.biddy.auction.auction.application.usecase.AuctionUseCase;
 import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
+import com.biddy.auction.auction.infra.kafka.AuctionEndedEventProducer;
 import com.biddy.auction.auction.infra.kafka.ProductAuctionRegisteredPayload;
+import com.biddy.auction.auction.infra.websocket.AuctionWebSocketPublisher;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
+import com.biddy.auction.watch.infra.redis.WatchRedisRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -37,6 +40,9 @@ public class AuctionService implements AuctionUseCase {
 
     private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
+    private final WatchRedisRepository watchRedis;
+    private final AuctionWebSocketPublisher webSocketPublisher;
+    private final AuctionEndedEventProducer auctionEndedEventProducer;
 
     /**
      * 조건에 맞는 경매 피드를 페이징 조회한다.
@@ -53,8 +59,13 @@ public class AuctionService implements AuctionUseCase {
         Sort sort = resolveSort(query.sort());
         Pageable pageable = PageRequest.of(query.page(), query.size(), sort);
 
-        return auctionRepository.findByFilters(query.status(), pageable)
-                .map(AuctionFeedResult::from);
+        // 마감임박 정렬 시 종료된 경매 제외
+        AuctionStatus statusFilter = "ending".equals(query.sort()) && query.status() == null
+                ? AuctionStatus.LIVE
+                : query.status();
+
+        return auctionRepository.findByFilters(statusFilter, pageable)
+                .map(auction -> AuctionFeedResult.from(auction, watchRedis.getCount(auction.getAuctionId())));
     }
 
     /**
@@ -69,14 +80,22 @@ public class AuctionService implements AuctionUseCase {
      */
     @Override
     @Transactional(readOnly = true)
-    public AuctionDetailResult getAuctionDetail(String auctionId) {
+    public AuctionDetailResult getAuctionDetail(String auctionId, Long memberId) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
 
         Bid topBid = bidRepository.findTopByAuctionId(auctionId)
                 .orElse(null);
 
-        return AuctionDetailResult.from(auction, topBid);
+        boolean isWatching = memberId != null && watchRedis.isWatching(memberId, auctionId);
+        int watcherCount = watchRedis.getCount(auctionId);
+
+        Long myHighestBid = memberId != null
+                ? bidRepository.findTopByAuctionIdAndBidderId(auctionId, memberId)
+                        .map(Bid::getAmount).orElse(null)
+                : null;
+
+        return AuctionDetailResult.from(auction, topBid, isWatching, watcherCount, myHighestBid);
     }
 
     /**
@@ -140,6 +159,34 @@ public class AuctionService implements AuctionUseCase {
                 auctionId, payload.productId());
     }
 
+    @Override
+    @Transactional
+    public void closeAuctionBySeller(String auctionId, Long sellerId) {
+        Auction auction = auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
+
+        if (!auction.getSellerId().equals(sellerId)) {
+            throw new BusinessException(ErrorCode.NOT_AUCTION_OWNER);
+        }
+
+        if (!auction.isLive()) {
+            throw new BusinessException(ErrorCode.AUCTION_ALREADY_ENDED);
+        }
+
+        if (auction.hasBids()) {
+            Bid topBid = bidRepository.findTopByAuctionId(auctionId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BID_NOT_FOUND));
+            auction.close(topBid.getBidderId(), topBid.getBidId());
+            webSocketPublisher.publishEnded(auctionId, topBid.getBidderId(), topBid.getAmount());
+            auctionEndedEventProducer.publish(auction, topBid);
+            log.info("판매자 즉시 종료 (낙찰): auctionId={}, winnerId={}", auctionId, topBid.getBidderId());
+        } else {
+            auction.closeUnsold();
+            webSocketPublisher.publishUnsold(auctionId);
+            log.info("판매자 즉시 종료 (유찰): auctionId={}", auctionId);
+        }
+    }
+
     /** 경매 ID 생성 (A- prefix + 랜덤 5자리 대문자 영숫자) */
     private String generateAuctionId() {
         return "A-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase();
@@ -158,6 +205,7 @@ public class AuctionService implements AuctionUseCase {
         return switch (sort) {
             case "ending" -> Sort.by(Sort.Direction.ASC, "endsAt");
             case "price" -> Sort.by(Sort.Direction.DESC, "currentBid");
+            case "priceAsc" -> Sort.by(Sort.Direction.ASC, "currentBid");
             default -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
     }

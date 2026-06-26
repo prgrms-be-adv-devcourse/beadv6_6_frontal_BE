@@ -3,7 +3,6 @@ package com.biddy.auction.auction.application.dto;
 import com.biddy.auction.auction.domain.model.Auction;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 경매 피드 조회 결과 DTO.
@@ -13,7 +12,7 @@ import java.util.UUID;
  */
 public record AuctionFeedResult(
         String auctionId,
-        UUID productId,
+        Long productId,
         Long sellerId,
         Long startPrice,
         Long minIncrement,
@@ -24,8 +23,8 @@ public record AuctionFeedResult(
         String status
 ) {
 
-    /** Auction Entity -> AuctionFeedResult 변환 */
-    public static AuctionFeedResult from(Auction auction) {
+    /** Auction Entity -> AuctionFeedResult 변환 (watcherCount는 Redis에서) */
+    public static AuctionFeedResult from(Auction auction, int watcherCount) {
         return new AuctionFeedResult(
                 auction.getAuctionId(),
                 auction.getProductId(),
@@ -35,7 +34,7 @@ public record AuctionFeedResult(
                 auction.getCurrentBid(),
                 auction.getBidCount(),
                 auction.getEndsAt(),
-                auction.getWatcherCount(),
+                watcherCount,
                 auction.getStatus().name()
         );
     }

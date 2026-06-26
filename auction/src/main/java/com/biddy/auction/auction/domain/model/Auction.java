@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 경매 도메인 엔티티.
@@ -34,7 +33,7 @@ public class Auction extends BaseEntity {
 
     /** Product Service 상품 ID (참조용, FK 없음) */
     @Column(name = "product_id", nullable = false, unique = true)
-    private UUID productId;
+    private Long productId;
 
     /** 판매자 회원 ID (Member Service 참조) */
     @Column(name = "seller_id", nullable = false)

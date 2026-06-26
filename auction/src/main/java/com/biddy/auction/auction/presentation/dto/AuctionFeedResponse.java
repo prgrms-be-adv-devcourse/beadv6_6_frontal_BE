@@ -3,7 +3,6 @@ package com.biddy.auction.auction.presentation.dto;
 import com.biddy.auction.auction.application.dto.AuctionFeedResult;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * 경매 피드 API 응답 DTO.
@@ -13,7 +12,7 @@ import java.util.UUID;
  */
 public record AuctionFeedResponse(
         String auctionId,
-        UUID productId,
+        Long productId,
         Long sellerId,
         Long startPrice,
         Long minIncrement,

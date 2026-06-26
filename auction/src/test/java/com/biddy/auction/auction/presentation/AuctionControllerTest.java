@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -19,7 +20,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AuctionController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class AuctionControllerTest {
 
     @Autowired
@@ -36,7 +37,7 @@ class AuctionControllerTest {
     @MockitoBean
     private AuctionUseCase auctionUseCase;
 
-    private static final UUID TEST_PRODUCT_ID = UUID.randomUUID();
+    private static final Long TEST_PRODUCT_ID = 1L;
 
     @Nested
     @DisplayName("GET /api/v1/auctions - 경매 피드 조회")
@@ -90,7 +91,7 @@ class AuctionControllerTest {
                     new AuctionDetailResult.TopBidderInfo(42L, 720000L),
                     false, null
             );
-            given(auctionUseCase.getAuctionDetail("A-001")).willReturn(result);
+            given(auctionUseCase.getAuctionDetail("A-001", null)).willReturn(result);
 
             mockMvc.perform(get("/api/v1/auctions/A-001"))
                     .andExpect(status().isOk())
@@ -105,7 +106,7 @@ class AuctionControllerTest {
         @Test
         @DisplayName("존재하지 않는 경매를 조회하면 404를 반환한다")
         void withNonExistingAuction_returns404() throws Exception {
-            given(auctionUseCase.getAuctionDetail("INVALID"))
+            given(auctionUseCase.getAuctionDetail("INVALID", null))
                     .willThrow(new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
 
             mockMvc.perform(get("/api/v1/auctions/INVALID"))
@@ -122,7 +123,7 @@ class AuctionControllerTest {
                     AuctionStatus.LIVE, 0, null, null,
                     null, false, null
             );
-            given(auctionUseCase.getAuctionDetail("A-002")).willReturn(result);
+            given(auctionUseCase.getAuctionDetail("A-002", null)).willReturn(result);
 
             mockMvc.perform(get("/api/v1/auctions/A-002"))
                     .andExpect(status().isOk())

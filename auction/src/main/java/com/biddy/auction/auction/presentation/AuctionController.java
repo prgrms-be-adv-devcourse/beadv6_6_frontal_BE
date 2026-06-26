@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -39,14 +40,25 @@ public class AuctionController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "경매 상세 조회", description = "경매 ID로 상세 정보를 조회한다. 상품정보, 가격, 통계, 최고입찰자를 포함한다.")
+    @Operation(summary = "경매 상세 조회", description = "경매 ID로 상세 정보를 조회한다. memberId를 전달하면 관심 등록 여부도 포함한다.")
     @GetMapping("/{auctionId}")
     public ResponseEntity<AuctionDetailResponse> getAuctionDetail(
-            @Parameter(description = "경매 ID (예: A-FNF97)") @PathVariable String auctionId
+            @Parameter(description = "경매 ID (예: A-FNF97)") @PathVariable String auctionId,
+            @AuthenticationPrincipal Long memberId
     ) {
         AuctionDetailResponse response = AuctionDetailResponse.from(
-                auctionUseCase.getAuctionDetail(auctionId));
+                auctionUseCase.getAuctionDetail(auctionId, memberId));
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "경매 즉시 종료", description = "판매자가 자신의 경매를 즉시 종료한다. 입찰이 있으면 낙찰, 없으면 유찰 처리.")
+    @PostMapping("/{auctionId}/close")
+    public ResponseEntity<Void> closeAuction(
+            @Parameter(description = "경매 ID") @PathVariable String auctionId,
+            @AuthenticationPrincipal Long memberId
+    ) {
+        auctionUseCase.closeAuctionBySeller(auctionId, memberId);
+        return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "낙찰/유찰 결과 조회", description = "종료된 경매의 낙찰 또는 유찰 결과를 조회한다. LIVE 상태면 409 Conflict.")
