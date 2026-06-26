@@ -19,6 +19,20 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: biddy
+          POSTGRES_PASSWORD: biddy1234
+          POSTGRES_DB: biddy_member
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U biddy -d biddy_auction"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
 
