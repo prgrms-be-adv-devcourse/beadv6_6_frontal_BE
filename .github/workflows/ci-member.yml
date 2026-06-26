@@ -29,7 +29,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U biddy -d biddy_auction"
+          --health-cmd="pg_isready -U biddy -d biddy_member"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
@@ -54,8 +54,24 @@ jobs:
       - name: Grant execute permission
         run: chmod +x member/gradlew
 
+      - name: Create member_biddy schema
+        env:
+          PGPASSWORD: biddy1234
+        run: psql -h localhost -U biddy -d biddy_member -c "CREATE SCHEMA IF NOT EXISTS member_biddy;"
+
       - name: Build and Test
         working-directory: member
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          MEMBER_DB: biddy_member
+          POSTGRES_USER: biddy
+          POSTGRES_PASSWORD: biddy1234
+          JWT_SECRET: test-secret-key-for-ci-pipeline-do-not-use-in-prod-1234567890
+          MAIL_USERNAME: ci-test@example.com
+          MAIL_PASSWORD: ci-test-password
+          EUREKA_CLIENT_ENABLED: false
+          SPRING_CLOUD_CONFIG_ENABLED: false
         run: ./gradlew build --no-daemon
 
       - name: Upload test results
