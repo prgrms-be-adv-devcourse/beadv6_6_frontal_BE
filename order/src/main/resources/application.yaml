@@ -19,6 +19,11 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
@@ -44,3 +49,9 @@ product-service:
 
 api:
   init: /api
+
+order:
+  batch:
+    expiration-cron: "0 */5 * * * *" # Every 5 minutes
+    purchase-confirmation-cron: "0 0 2 * * *" # Every day at 2 AM
+

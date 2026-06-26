@@ -1,9 +1,12 @@
 package com.biddy.order.order.infra.persistence;
 
 import com.biddy.order.order.domain.model.Order;
+import com.biddy.order.order.domain.model.OrderStatus;
 import com.biddy.order.order.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,5 +29,15 @@ public class OrderRepositoryAdapter implements OrderRepository {
     @Override
     public Order save(Order order) {
         return orderJpaRepository.save(order);
+    }
+
+    @Override
+    public List<Order> findByStatusInAndCreatedAtBefore(List<OrderStatus> statuses, LocalDateTime threshold) {
+        return orderJpaRepository.findByStatusInAndCreatedAtBefore(statuses, threshold);
+    }
+
+    @Override
+    public List<Order> findByStatusAndUpdatedAtBefore(OrderStatus status, LocalDateTime threshold) {
+        return orderJpaRepository.findByStatusAndUpdatedAtBefore(status, threshold);
     }
 }
