@@ -3,6 +3,7 @@ package com.biddy.productservice.infra.event;
 import com.biddy.productservice.application.service.ProductStatusService;
 import com.biddy.productservice.application.service.ProductStockService;
 import com.biddy.productservice.domain.event.MemberWithdrawnEvent;
+import com.biddy.productservice.domain.event.StockDeductFailedEvent;
 import com.biddy.productservice.domain.event.StockDeductedEvent;
 import com.biddy.productservice.domain.event.StockRestoredEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +20,7 @@ public class ProductEventConsumer {
 
     private final ProductStockService stockService;
     private final ProductStatusService statusService;
+    private final ProductEventProducer eventProducer;
     private final ObjectMapper objectMapper;
 
     // 재고차감 수신 (멱등성 + 동시성은 서비스 레이어에서 단일 트랜잭션으로 처리)
@@ -31,6 +33,16 @@ public class ProductEventConsumer {
         } catch (OptimisticLockingFailureException e) {
             log.error("재고차감 동시성 충돌 - 재시도 필요: {}", message);
             throw e; // Kafka가 재시도 처리
+        } catch (IllegalStateException e) {
+            log.error("재고차감 실패 - 재고 부족: {}", message);
+            try {
+                StockDeductedEvent event = objectMapper.readValue(message, StockDeductedEvent.class);
+                eventProducer.sendStockDeductFailed(
+                        new StockDeductFailedEvent(event.orderId(), event.productId(), "재고 부족")
+                );
+            } catch (Exception ex) {
+                log.error("재고차감 실패 이벤트 발행 중 오류", ex);
+            }
         } catch (Exception e) {
             log.error("재고차감 처리 실패", e);
         }
