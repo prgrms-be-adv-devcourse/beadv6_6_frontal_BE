@@ -27,7 +27,9 @@ public class ProductCommandService implements ProductCommandUseCase {
     public Product create(ProductCreateRequest request, Long memberId){
         Product product = Product.create(memberId, request.name(), request.description(),
                 request.price(),request.stock(),request.status(),request.category(),
-                request.saleType(),request.brand(),memberId);
+                request.saleType(),request.brand(),memberId,
+                request.startPrice(), request.minIncrement(),
+                request.startsAt(), request.endsAt());
 
         Product savedProduct = productRepository.save(product);
         //경매 상품이면 Auction 도메인에 발행
