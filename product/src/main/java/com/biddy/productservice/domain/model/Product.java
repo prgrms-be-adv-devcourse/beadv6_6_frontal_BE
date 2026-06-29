@@ -58,6 +58,23 @@ public class Product {
     @Schema(description = "브랜드",example = "나이키")
     private String brand;
 
+    // 경매 전용 필드
+    @Column(name = "start_price")
+    @Schema(description = "경매 시작가", example = "5000")
+    private java.math.BigDecimal startPrice;
+
+    @Column(name = "min_increment")
+    @Schema(description = "최소 입찰 단위", example = "500")
+    private Integer minIncrement;
+
+    @Column(name = "starts_at")
+    @Schema(description = "경매 시작일시")
+    private java.time.LocalDateTime startsAt;
+
+    @Column(name = "ends_at")
+    @Schema(description = "경매 종료일시")
+    private java.time.LocalDateTime endsAt;
+
     @ElementCollection
     @CollectionTable(name = "product_image_urls", joinColumns = @JoinColumn(name = "product_id"))
     @Column(name = "image_url")
@@ -107,6 +124,23 @@ public class Product {
                 stock, status, category, saleType, brand);
         product.regId = creatorId;
         product.modifyId = creatorId;
+        return product;
+    }
+
+    public static Product create(Long sellerId, String name, String description, BigDecimal price,
+                                 int stock, String status, String category,
+                                 SaleType saleType, String brand, Long creatorId,
+                                 java.math.BigDecimal startPrice, Integer minIncrement,
+                                 java.time.LocalDateTime startsAt, java.time.LocalDateTime endsAt)
+    {
+        Product product = new Product(sellerId, name, description, price,
+                stock, status, category, saleType, brand);
+        product.regId = creatorId;
+        product.modifyId = creatorId;
+        product.startPrice = startPrice;
+        product.minIncrement = minIncrement;
+        product.startsAt = startsAt;
+        product.endsAt = endsAt;
         return product;
     }
 
