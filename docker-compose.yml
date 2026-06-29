@@ -190,6 +190,7 @@ services:
       TZ: Asia/Seoul
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
 
   payment:
     build: ./payment
