@@ -209,6 +209,8 @@ services:
       ORDER_SERVICE_URL: http://order:8083
       TOSS_PAYMENTS_BASE_URL: ${TOSS_PAYMENTS_BASE_URL}
       TOSS_PAYMENTS_SECRET_KEY: ${TOSS_PAYMENTS_SECRET_KEY}
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
 
 volumes:
   postgres-data:
