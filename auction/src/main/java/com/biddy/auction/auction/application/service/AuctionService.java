@@ -149,6 +149,7 @@ public class AuctionService implements AuctionUseCase {
                 .productId(payload.productId())
                 .sellerId(payload.sellerId())
                 .startPrice(payload.startPrice())
+                .currentBid(payload.startPrice())
                 .minIncrement(payload.minIncrement())
                 .startsAt(payload.startsAt())
                 .endsAt(payload.endsAt())
