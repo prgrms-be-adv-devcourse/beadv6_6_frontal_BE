@@ -182,7 +182,10 @@ public class OrderApplicationService implements OrderUseCase {
                 order.getTotalPrice(),
                 infoResults,
                 order.getCreatedAt(),
-                order.getUpdatedAt()
+                order.getUpdatedAt(),
+                order.getOrderType(),
+                order.getAuctionId(),
+                order.getPaymentDeadline()
         );
     }
 }

@@ -42,11 +42,13 @@ public class OrderExpirationJobConfig {
         return new StepBuilder(STEP_NAME, jobRepository)
                 .tasklet((contribution, chunkContext) -> {
                     LocalDateTime threshold = LocalDateTime.now().minusMinutes(30);
-                    log.info("[Batch] Starting order expiration job. Threshold time: {}", threshold);
+                    LocalDateTime now = LocalDateTime.now();
+                    log.info("[Batch] Starting order expiration job. Normal threshold: {}, Current time: {}", threshold, now);
 
-                    List<Order> expiredOrders = orderRepository.findByStatusInAndCreatedAtBefore(
+                    List<Order> expiredOrders = orderRepository.findExpiredOrders(
                             List.of(OrderStatus.PENDING, OrderStatus.PROCESSING),
-                            threshold
+                            threshold,
+                            now
                     );
 
                     log.info("[Batch] Found {} expired orders to cancel.", expiredOrders.size());

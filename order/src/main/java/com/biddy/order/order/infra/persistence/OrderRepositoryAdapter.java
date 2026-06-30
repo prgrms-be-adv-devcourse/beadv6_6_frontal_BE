@@ -32,6 +32,16 @@ public class OrderRepositoryAdapter implements OrderRepository {
     }
 
     @Override
+    public Optional<Order> findByAuctionId(String auctionId) {
+        return orderJpaRepository.findByAuctionId(auctionId);
+    }
+
+    @Override
+    public List<Order> findExpiredOrders(List<OrderStatus> statuses, LocalDateTime normalThreshold, LocalDateTime now) {
+        return orderJpaRepository.findExpiredOrders(statuses, normalThreshold, now);
+    }
+
+    @Override
     public List<Order> findByStatusInAndCreatedAtBefore(List<OrderStatus> statuses, LocalDateTime threshold) {
         return orderJpaRepository.findByStatusInAndCreatedAtBefore(statuses, threshold);
     }

@@ -12,6 +12,9 @@ public interface OrderRepository {
     Optional<Order> findById(Long id);
     Order save(Order order);
     
+    Optional<Order> findByAuctionId(String auctionId);
+    List<Order> findExpiredOrders(List<OrderStatus> statuses, LocalDateTime normalThreshold, LocalDateTime now);
+    
     // Batch Job 용도 쿼리 메소드 정의
     List<Order> findByStatusInAndCreatedAtBefore(List<OrderStatus> statuses, LocalDateTime threshold);
     List<Order> findByStatusAndUpdatedAtBefore(OrderStatus status, LocalDateTime threshold);
