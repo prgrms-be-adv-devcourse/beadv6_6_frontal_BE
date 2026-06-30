@@ -1,0 +1,24 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ develop ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          envs: GH_PAT
+          script: |
+            cd ~/beadv6_6_frontal_BE
+            git pull https://$GH_PAT@github.com/prgrms-be-adv-devcourse/beadv6_6_frontal_BE.git develop
+            docker-compose down
+            docker-compose up -d --build
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
