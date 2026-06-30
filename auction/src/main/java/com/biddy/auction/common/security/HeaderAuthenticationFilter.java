@@ -13,10 +13,10 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Bearer 토큰 기반 인증 필터.
+ * Gateway 헤더 또는 Bearer 토큰 기반 인증 필터.
  *
- * <p>X-Member-Id 헤더만으로 인증을 만들지 않는다. Swagger 또는 직접 호출에서
- * 회원 ID 헤더를 임의로 넣어 인증을 우회할 수 있기 때문이다.</p>
+ * <p>Gateway가 JWT를 검증한 뒤 전달한 X-Member-Id/X-Member-Role 헤더를 우선 사용한다.
+ * Gateway를 거치지 않은 직접 호출은 기존처럼 Bearer 토큰을 검증해야 인증된다.</p>
  */
 public class HeaderAuthenticationFilter extends OncePerRequestFilter {
 
@@ -29,24 +29,32 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        String gatewayMemberId = request.getHeader("X-Member-Id");
+        String gatewayRole = request.getHeader("X-Member-Role");
         String authorization = request.getHeader("Authorization");
 
-        if (authorization != null && authorization.startsWith("Bearer ")) {
+        if (gatewayMemberId != null && gatewayRole != null && authorization != null) {
+            setAuthentication(Long.valueOf(gatewayMemberId), gatewayRole);
+        } else if (authorization != null && authorization.startsWith("Bearer ")) {
             String token = authorization.substring(7);
             if (jwtTokenProvider.validateToken(token)) {
                 Long memberId = jwtTokenProvider.getMemberId(token);
                 String role = jwtTokenProvider.getRole(token);
-                List<SimpleGrantedAuthority> authorities = List.of(
-                        new SimpleGrantedAuthority("ROLE_" + (role != null ? role : "USER"))
-                );
-
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(memberId, null, authorities);
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                setAuthentication(memberId, role);
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void setAuthentication(Long memberId, String role) {
+        List<SimpleGrantedAuthority> authorities = List.of(
+                new SimpleGrantedAuthority("ROLE_" + (role != null ? role : "USER"))
+        );
+
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(memberId, null, authorities);
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }
