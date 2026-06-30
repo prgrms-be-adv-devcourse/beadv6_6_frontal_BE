@@ -35,17 +35,30 @@ public class Order {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_type", nullable = false, length = 20)
+    private OrderType orderType = OrderType.NORMAL;
+
+    @Column(name = "auction_id", length = 50)
+    private String auctionId;
+
+    @Column(name = "payment_deadline")
+    private LocalDateTime paymentDeadline;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderInfo> orderInfos = new ArrayList<>(); // OrderItem -> OrderInfo 변경
 
     @Builder
-    public Order(Long userId, OrderStatus status, Long totalPrice, List<OrderInfo> orderInfos) {
+    public Order(Long userId, OrderStatus status, Long totalPrice, List<OrderInfo> orderInfos, OrderType orderType, String auctionId, LocalDateTime paymentDeadline) {
         this.userId = userId;
         this.status = status;
         this.totalPrice = totalPrice;
         if (orderInfos != null) {
             this.orderInfos = orderInfos;
         }
+        this.orderType = orderType != null ? orderType : OrderType.NORMAL;
+        this.auctionId = auctionId;
+        this.paymentDeadline = paymentDeadline;
     }
 
     // 주문 상태 변경 메소드

@@ -1,5 +1,6 @@
 package com.biddy.order.order.application.dto;
 
+import com.biddy.order.order.domain.model.OrderType;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -10,7 +11,10 @@ public record OrderResult(
         Long totalPrice, // BigDecimal -> Long
         List<OrderInfoResult> orderInfos, // OrderItemResult -> OrderInfoResult
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        OrderType orderType,
+        String auctionId,
+        LocalDateTime paymentDeadline
 ) {
     public record OrderInfoResult(
             Long id,
