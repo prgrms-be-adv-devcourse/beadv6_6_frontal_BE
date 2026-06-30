@@ -139,6 +139,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: Asia/Seoul
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      IMAGE_BASE_URL: ${IMAGE_BASE_URL:-http://localhost:8082/images}
     volumes:
       - product-images:/app/images
 
