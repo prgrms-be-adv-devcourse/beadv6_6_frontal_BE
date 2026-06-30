@@ -46,7 +46,7 @@ spring:
         - id: auction-service
           uri: lb://AUCTION-SERVICE
           predicates:
-            - Path=/api/auctions/**
+            - Path=/api/auctions/**, /api/v1/auctions/**, /api/v1/members/me/watches/**, /api/v1/members/me/bids/**
 
         - id: payment-service
           uri: lb://PAYMENT-SERVICE
