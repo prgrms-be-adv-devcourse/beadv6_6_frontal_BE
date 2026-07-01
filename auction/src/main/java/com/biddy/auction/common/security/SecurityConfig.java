@@ -63,7 +63,13 @@ public class SecurityConfig {
                         // GET 조회는 비인증 허용
                         .requestMatchers(HttpMethod.GET, "/api/v1/auctions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auctions").permitAll()
-                        // POST 입찰/관심, 내 목록 등은 인증 필수
+                        .requestMatchers(HttpMethod.GET, "/auctions/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auctions").permitAll()
+                        // POST 입찰/관심 등은 인증 필수
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auctions/*/bids").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/auctions/*/bids").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auctions/*/watch").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/auctions/*/watch").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
@@ -78,6 +84,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        config.setAllowedOrigins(List.of("https://biddy-zeta.vercel.app", "http://biddy-zeta.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
