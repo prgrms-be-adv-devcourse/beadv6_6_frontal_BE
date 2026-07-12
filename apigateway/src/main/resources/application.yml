@@ -55,6 +55,11 @@ spring:
           predicates:
             - Path=/api/payments/**
 
+        - id: recommendation-service
+          uri: lb://RECOMMENDATION-SERVICE
+          predicates:
+            - Path=/api/recommendations/**
+
 eureka:
   client:
     service-url:

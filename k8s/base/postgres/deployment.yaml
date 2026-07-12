@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:16-alpine
+          image: postgres:16-alpine   # 현재 postgres의 이미지
           ports:
             - containerPort: 5432
           envFrom:
@@ -30,12 +30,12 @@ spec:
             timeoutSeconds: 5
           volumeMounts:
             - name: postgres-data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql/data    #postgres가 실제 DB파일을 저장하는 경로
             - name: postgres-initdb
               mountPath: /docker-entrypoint-initdb.d
       volumes:
         - name: postgres-data
-          emptyDir: {}
+          emptyDir: {}                  # Pod 살아있는 동안만 저장하는 임시공간
         - name: postgres-initdb
           configMap:
             name: postgres-initdb
