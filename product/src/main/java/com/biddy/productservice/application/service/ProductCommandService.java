@@ -29,6 +29,7 @@ public class ProductCommandService implements ProductCommandUseCase {
         Product product = Product.create(memberId, request.name(), request.description(),
                 request.price(),request.stock(),request.status(),request.category(),
                 request.saleType(),request.brand(),memberId,
+                request.checklistAnswers(),
                 request.startPrice(), request.minIncrement(),
                 request.startsAt(), request.endsAt());
 

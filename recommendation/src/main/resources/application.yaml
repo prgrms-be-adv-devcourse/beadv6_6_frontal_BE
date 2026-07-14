@@ -13,6 +13,10 @@ spring:
   sql:
     init:
       mode: always
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
@@ -44,9 +48,18 @@ management:
 openai:
   api-key: ${OPENAI_API_KEY:}
   embedding-model: text-embedding-3-small
+  vision-model: gpt-4o-mini
   base-url: https://api.openai.com/v1
 
 order:
   service-url: ${ORDER_SERVICE_URL:http://localhost:8083}
 product:
   service-url: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+
+# product-service가 소유한 DB에 담긴 product_embedding 테이블을 직접 조회하기 위한 별도 커넥션
+# 주의: HikariCP에 직접 바인딩되므로 'url'이 아니라 'jdbc-url'이어야 함 (spring.datasource.url과 다름)
+product-db:
+  jdbc-url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${PRODUCT_DB:biddy_product}
+  username: ${POSTGRES_USER:biddy}
+  password: ${POSTGRES_PASSWORD:biddy1234}
+  driver-class-name: org.postgresql.Driver

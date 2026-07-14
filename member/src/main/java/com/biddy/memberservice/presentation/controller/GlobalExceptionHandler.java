@@ -1,6 +1,7 @@
 package com.biddy.memberservice.presentation.controller;
 
 import com.biddy.memberservice.domain.exception.ErrorResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -42,6 +44,8 @@ public class GlobalExceptionHandler {
     // 나머지 예외
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
+        // 원래 코드엔 로그가 없어서 500의 실제 원인이 콘솔에 전혀 안 남았음 — 진단을 위해 로그만 추가
+        log.error("[진단] 처리되지 않은 예외 발생", e);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(500, "서버 오류가 발생했습니다."));

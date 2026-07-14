@@ -12,4 +12,6 @@ public interface ProductEmbeddingRepository {
     Optional<ProductEmbedding> findById(Long productId);
 
     List<Long> findNearestProductIds(float[] queryVector, List<Long> excludeProductIds, List<String> categories, int limit);
+
+    List<Long> findProductIdsByCategory(String category, int limit);
 }

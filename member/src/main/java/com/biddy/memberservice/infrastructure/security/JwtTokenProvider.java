@@ -5,13 +5,17 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Date;
+import java.util.HexFormat;
 
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
@@ -27,6 +31,17 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessExpiration = accessExpiration;
         this.refreshExpiration = refreshExpiration;
+        // [진단] apigateway와 같은 JWT_SECRET을 쓰는지 비교하기 위한 임시 로그 — 원문은 안 찍고 해시만 출력
+        log.info("[진단] member-service jwt.secret sha256 앞8자리={}, 길이={}", sha256Prefix(secret), secret.length());
+    }
+
+    private static String sha256Prefix(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest, 0, 4);
+        } catch (Exception e) {
+            return "unknown";
+        }
     }
 
     // Access Token 발급

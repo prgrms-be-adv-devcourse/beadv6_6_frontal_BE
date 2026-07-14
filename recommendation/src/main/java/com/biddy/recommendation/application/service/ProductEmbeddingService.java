@@ -42,11 +42,18 @@ public class ProductEmbeddingService {
     }
 
     private String buildSourceText(ProductDto product) {
-        return String.join(" ",
-                nullToEmpty(product.name()),
-                nullToEmpty(product.category()),
-                nullToEmpty(product.brand()),
-                nullToEmpty(product.description()));
+        StringBuilder text = new StringBuilder()
+                .append("이름: ").append(nullToEmpty(product.name())).append(" / ")
+                .append("카테고리: ").append(nullToEmpty(product.category())).append(" / ")
+                .append("브랜드: ").append(nullToEmpty(product.brand())).append(" / ")
+                .append("설명: ").append(nullToEmpty(product.description()));
+
+        if (product.checklistAnswers() != null) {
+            product.checklistAnswers().forEach((question, answer) ->
+                    text.append(" / ").append(question).append(": ").append(nullToEmpty(answer)));
+        }
+
+        return text.toString();
     }
 
     private String nullToEmpty(String value) {

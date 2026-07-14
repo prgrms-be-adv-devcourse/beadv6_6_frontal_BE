@@ -3,7 +3,10 @@ package com.biddy.recommendation.infra.persistence;
 import com.biddy.recommendation.domain.model.ProductEmbedding;
 import com.biddy.recommendation.domain.repository.ProductEmbeddingRepository;
 import com.biddy.recommendation.util.VectorTextUtils;
-import lombok.RequiredArgsConstructor;
+import com.zaxxer.hikari.HikariDataSource;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -12,11 +15,30 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+// [2026-07-14] 예전에는 @RequiredArgsConstructor(Lombok)로 생성자를 자동 생성하고, 필드에
+// @Qualifier("productJdbcTemplate")를 붙였었음. 이 어댑터가 엉뚱한 DB로 연결되는 버그가 있었는데
+// 정확한 원인은 확정하지 못함 — "Lombok이 필드의 @Qualifier를 생성자로 안 옮겨줬다"는 추측을 했었지만,
+// 같은 버그가 애초에 @Qualifier가 없는 다른 어댑터(UserInterestRepositoryAdapter)에서도 똑같이
+// 발생해서 그 추측은 근거가 부족함(반증됨). 원인 불확실하지만, Lombok 생성자 대신 직접 쓴 생성자로
+// 바꾸고 ProductDbConfig의 빈 이름도 Spring Boot 관례와 안 겹치게 바꾼 뒤, 진단 로그로 실제
+// 연결 상태를 확인하는 중.
+@Slf4j
 @Repository
-@RequiredArgsConstructor
 public class ProductEmbeddingRepositoryAdapter implements ProductEmbeddingRepository {
 
+    // product-service가 소유한 DB(biddy_product)에 직접 연결되는 JdbcTemplate — 임베딩 테이블이 그쪽에 있음
     private final JdbcTemplate jdbcTemplate;
+
+    public ProductEmbeddingRepositoryAdapter(@Qualifier("productJdbcTemplate") JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    @PostConstruct
+    public void logDataSource() {
+        if (jdbcTemplate.getDataSource() instanceof HikariDataSource hikari) {
+            log.info(">>> [진단] ProductEmbeddingRepositoryAdapter가 실제로 물고 있는 jdbcUrl = {}", hikari.getJdbcUrl());
+        }
+    }
 
     @Override
     public ProductEmbedding save(ProductEmbedding embedding) {
@@ -81,5 +103,17 @@ public class ProductEmbeddingRepositoryAdapter implements ProductEmbeddingReposi
                 """.formatted(whereClause);
 
         return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getLong("product_id"), params.toArray());
+    }
+
+    @Override
+    public List<Long> findProductIdsByCategory(String category, int limit) {
+        return jdbcTemplate.query("""
+                SELECT product_id FROM product_embedding
+                WHERE category = ?
+                ORDER BY updated_at DESC
+                LIMIT ?
+                """,
+                (rs, rowNum) -> rs.getLong("product_id"),
+                category, limit);
     }
 }

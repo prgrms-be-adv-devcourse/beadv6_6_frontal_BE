@@ -15,6 +15,7 @@ import com.biddy.memberservice.infrastructure.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +37,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
     private final MemberEventPublisher eventPublisher;
+
+    // Gmail SMTP는 인증 계정과 From 주소가 다르면 거부/무시할 수 있어서, 하드코딩 대신 인증 계정과 동일한 값을 씀
+    @Value("${spring.mail.username}")
+    private String mailFromAddress;
 
     @Transactional
     @SneakyThrows
@@ -139,11 +144,20 @@ public class AuthService {
         ));
 
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("Biddy <tlsdlcl456@gmail.com>");
+        // 원래 코드: message.setFrom("Biddy <tlsdlcl456@gmail.com>"); — 인증 계정이 바뀔 때마다 코드를 고쳐야 했고,
+        // Gmail이 인증 계정과 다른 From 주소를 거부할 수 있어서 인증 계정(spring.mail.username)과 항상 일치하도록 변경
+        message.setFrom("Biddy <" + mailFromAddress + ">");
         message.setTo(email);
         message.setSubject("[Biddy] 이메일 인증");
         message.setText("아래 인증 코드를 입력해주세요.\n\n인증 코드: " + token + "\n\n10분 후 만료됩니다.");
-        mailSender.send(message);
+        // 원래 코드: mailSender.send(message); — 실패 시 원인이 로그에 전혀 안 남아서(GlobalExceptionHandler가
+        // 그냥 500만 반환) 진단을 위해 try-catch + 로그만 임시로 둘렀습니다. 실패해도 동작은 기존과 동일하게 예외를 던집니다.
+        try {
+            mailSender.send(message);
+        } catch (Exception e) {
+            log.error("[진단] 인증 이메일 발송 실패 - to={}, cause={}", email, e.toString(), e);
+            throw e;
+        }
     }
 
     @Transactional
