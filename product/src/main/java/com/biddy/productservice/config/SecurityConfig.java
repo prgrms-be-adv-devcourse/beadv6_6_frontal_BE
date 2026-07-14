@@ -36,6 +36,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/products/liked").authenticated()
                         // 비로그인도 가능한 상품 조회
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                        // recommendation-service가 임베딩 저장을 위임하는 내부 전용 API.
+                        // 게이트웨이 라우트가 없어 외부에서 직접 호출은 안 되지만, 별도 서비스 간 인증은 아직 없음 —
+                        // 나중에 내부망 제한(NetworkPolicy)이나 서비스 간 시크릿 검증으로 보강 필요.
+                        .requestMatchers(HttpMethod.PUT, "/api/products/*/embedding").permitAll()
                         // 나머지 (등록/수정/삭제/이미지업로드/찜하기 등)는 인증 필요
                         .anyRequest().authenticated())
                 .addFilterBefore(new HeaderAuthenticationFilter(),

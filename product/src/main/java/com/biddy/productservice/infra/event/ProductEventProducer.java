@@ -1,5 +1,6 @@
 package com.biddy.productservice.infra.event;
 
+import com.biddy.productservice.domain.event.ProductRegisteredEvent;
 import com.biddy.productservice.domain.event.ProductRegisteredForAuctionEvent;
 import com.biddy.productservice.domain.event.StockDeductFailedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +36,16 @@ public class ProductEventProducer {
             log.info("경매 등록 이벤트 발행: {}", message);
         } catch (Exception e) {
             log.error("경매 등록 이벤트 발행 실패", e);
+        }
+    }
+
+    public void sendProductRegistered(ProductRegisteredEvent event) {
+        try {
+            String message = objectMapper.writeValueAsString(event);
+            kafkaTemplate.send("product.registered", message);
+            log.info("상품 등록 이벤트 발행: {}", message);
+        } catch (Exception e) {
+            log.error("상품 등록 이벤트 발행 실패", e);
         }
     }
 }

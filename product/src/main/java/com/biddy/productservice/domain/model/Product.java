@@ -4,11 +4,15 @@ package com.biddy.productservice.domain.model;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.Getter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Getter
@@ -58,6 +62,11 @@ public class Product {
     @Schema(description = "브랜드",example = "나이키")
     private String brand;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "checklist_answers", columnDefinition = "jsonb")
+    @Schema(description = "카테고리별 상품 등록 체크리스트 답변 (예: 사이즈, 사양 등)")
+    private Map<String, String> checklistAnswers = new HashMap<>();
+
     // 경매 전용 필드
     @Column(name = "start_price")
     @Schema(description = "경매 시작가", example = "5000")
@@ -104,7 +113,7 @@ public class Product {
     protected Product(){}
 
     private Product(Long sellerId, String name, String description, BigDecimal price, int stock, String status, String category,
-                    SaleType saleType, String brand) {
+                    SaleType saleType, String brand, Map<String, String> checklistAnswers) {
         this.sellerId = sellerId;
         this.name = name;
         this.description = description;
@@ -114,14 +123,16 @@ public class Product {
         this.category = category;
         this.saleType = saleType;
         this.brand = brand;
+        this.checklistAnswers = checklistAnswers != null ? checklistAnswers : new HashMap<>();
     }
 
     public static Product create(Long sellerId, String name, String description, BigDecimal price,
                                  int stock, String status, String category,
-                                 SaleType saleType, String brand, Long creatorId)
+                                 SaleType saleType, String brand, Long creatorId,
+                                 Map<String, String> checklistAnswers)
     {
         Product product = new Product(sellerId, name, description, price,
-                stock, status, category, saleType, brand);
+                stock, status, category, saleType, brand, checklistAnswers);
         product.regId = creatorId;
         product.modifyId = creatorId;
         return product;
@@ -130,11 +141,12 @@ public class Product {
     public static Product create(Long sellerId, String name, String description, BigDecimal price,
                                  int stock, String status, String category,
                                  SaleType saleType, String brand, Long creatorId,
+                                 Map<String, String> checklistAnswers,
                                  java.math.BigDecimal startPrice, Integer minIncrement,
                                  java.time.LocalDateTime startsAt, java.time.LocalDateTime endsAt)
     {
         Product product = new Product(sellerId, name, description, price,
-                stock, status, category, saleType, brand);
+                stock, status, category, saleType, brand, checklistAnswers);
         product.regId = creatorId;
         product.modifyId = creatorId;
         product.startPrice = startPrice;

@@ -1,6 +1,7 @@
 package com.biddy.productservice.presentation.controller;
 
 
+import com.biddy.productservice.application.service.ProductEmbeddingService;
 import com.biddy.productservice.application.service.ProductImageService;
 import com.biddy.productservice.application.service.ProductLikeService;
 import com.biddy.productservice.application.usecase.ProductCommandUseCase;
@@ -34,6 +35,7 @@ public class ProductController {
     private final ProductQueryUseCase productQueryUseCase;
     private final ProductImageService productImageService;
     private final ProductLikeService productLikeService;
+    private final ProductEmbeddingService productEmbeddingService;
 
     @PostMapping
     @Operation(summary = "상품 등록",description = "상품을 새로 등록합니다. 로그인 필요.")
@@ -163,6 +165,17 @@ public class ProductController {
     }
 
     // ────────────────────────────────────────────────────────
+
+    // recommendation-service 전용 내부 API: 임베딩 계산은 recommendation이 하고, 저장은 product가 소유한
+    // product_embedding 테이블에 이 API로 위임받아 처리함 (recommendation은 조회만 자체 datasource로 직접 함).
+    @PutMapping("/{id}/embedding")
+    @Operation(summary = "상품 임베딩 저장 (내부 전용)", description = "recommendation-service가 계산한 임베딩 벡터를 저장합니다. 서비스 간 내부 호출 전용이며 일반 사용자용 API가 아닙니다.")
+    public ResponseEntity<Void> upsertEmbedding(
+            @PathVariable Long id,
+            @RequestBody ProductEmbeddingUpsertRequest request) {
+        productEmbeddingService.upsertEmbedding(id, request);
+        return ResponseEntity.ok().build();
+    }
 
     @PostMapping("/details")
     public List<ProductInfoResponse> getProductsInfo(

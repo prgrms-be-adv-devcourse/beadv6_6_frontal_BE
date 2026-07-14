@@ -1,6 +1,7 @@
 package com.biddy.productservice.application.service;
 
 import com.biddy.productservice.application.usecase.ProductCommandUseCase;
+import com.biddy.productservice.domain.event.ProductRegisteredEvent;
 import com.biddy.productservice.domain.event.ProductRegisteredForAuctionEvent;
 import com.biddy.productservice.domain.model.Product;
 import com.biddy.productservice.domain.model.SaleType;
@@ -28,10 +29,15 @@ public class ProductCommandService implements ProductCommandUseCase {
         Product product = Product.create(memberId, request.name(), request.description(),
                 request.price(),request.stock(),request.status(),request.category(),
                 request.saleType(),request.brand(),memberId,
+                request.checklistAnswers(),
                 request.startPrice(), request.minIncrement(),
                 request.startsAt(), request.endsAt());
 
         Product savedProduct = productRepository.save(product);
+
+        //모든 상품 등록시 추천 도메인(임베딩 생성용)에 발행
+        eventProducer.sendProductRegistered(new ProductRegisteredEvent(savedProduct.getId()));
+
         //경매 상품이면 Auction 도메인에 발행
         if (savedProduct.getSaleType() == SaleType.AUCTION){
             eventProducer.sendAuctionRegistered(

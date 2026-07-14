@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Schema(description = "상품 생성 정보")
 public record ProductCreateRequest(
@@ -33,6 +34,9 @@ public record ProductCreateRequest(
 
         @Schema(description = "브랜드",example = "나이키")
         String brand,
+
+        @Schema(description = "카테고리별 상품 등록 체크리스트 답변", example = "{\"사이즈\": \"270mm\"}")
+        Map<String, String> checklistAnswers,
 
         // 경매 전용 필드 (saleType=AUCTION일 때만 필요)
         @Schema(description = "경매 시작가", example = "5000")

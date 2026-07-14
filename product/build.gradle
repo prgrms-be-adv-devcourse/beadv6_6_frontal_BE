@@ -38,6 +38,7 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.29.0')
     implementation 'software.amazon.awssdk:s3'
     runtimeOnly 'org.postgresql:postgresql'
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
