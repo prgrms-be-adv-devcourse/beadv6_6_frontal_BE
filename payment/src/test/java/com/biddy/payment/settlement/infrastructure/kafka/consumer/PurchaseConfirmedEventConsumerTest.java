@@ -18,7 +18,7 @@ class PurchaseConfirmedEventConsumerTest {
     );
 
     @Test
-    void consume_completesSettlementByOrderId() {
+    void consume_marksSettlementReadyByOrderId() {
         Long orderId = 400L;
         String payload = """
                 {
@@ -30,6 +30,6 @@ class PurchaseConfirmedEventConsumerTest {
 
         consumer.consume(payload);
 
-        verify(settlementService).completeByOrderId(orderId);
+        verify(settlementService).markReadyByOrderId(orderId);
     }
 }

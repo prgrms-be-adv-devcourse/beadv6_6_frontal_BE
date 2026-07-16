@@ -106,16 +106,23 @@ public class SettlementService {
         Settlement settlement = settlementRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("주문 정산을 찾을 수 없습니다. orderId=" + orderId));
 
-        if (settlement.getStatus() == SettlementStatus.COMPLETED) {
-            return;
-        }
+        completeSettlement(settlement);
+    }
 
-        settlement.complete();
-        depositService.increaseForSettlement(
-                settlement.getUserId(),
-                settlement.getSettlementAmount(),
-                String.valueOf(settlement.getId())
-        );
+    @Transactional
+    public void markReadyByOrderId(Long orderId) {
+        Settlement settlement = settlementRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new EntityNotFoundException("주문 정산을 찾을 수 없습니다. orderId=" + orderId));
+
+        settlement.markReady();
+    }
+
+    @Transactional
+    public int completeReadySettlements() {
+        List<Settlement> readySettlements = settlementRepository.findByStatusOrderByCreatedAtAsc(SettlementStatus.READY);
+
+        readySettlements.forEach(this::completeSettlement);
+        return readySettlements.size();
     }
 
     private SettlementResponse createSellerSettlement(
@@ -181,5 +188,18 @@ public class SettlementService {
                 .map(SettlementItemResponse::from)
                 .toList();
         return SettlementResponse.from(settlement, items);
+    }
+
+    private void completeSettlement(Settlement settlement) {
+        if (settlement.getStatus() == SettlementStatus.COMPLETED) {
+            return;
+        }
+
+        settlement.complete();
+        depositService.increaseForSettlement(
+                settlement.getUserId(),
+                settlement.getSettlementAmount(),
+                String.valueOf(settlement.getId())
+        );
     }
 }

@@ -31,6 +31,12 @@ public class SettlementController {
         return ApiResponse.ok(settlementService.runMonthlySettlement(request), "월별 정산 배치가 완료되었습니다.");
     }
 
+    @PostMapping("/ready/complete")
+    public ApiResponse<Integer> completeReadySettlements() {
+        int completedCount = settlementService.completeReadySettlements();
+        return ApiResponse.ok(completedCount, "정산 가능 건 일괄 지급이 완료되었습니다.");
+    }
+
     @GetMapping
     public ApiResponse<List<SettlementResponse>> getSettlements(@AuthenticationPrincipal Long memberId) {
         return ApiResponse.ok(settlementService.getSettlements(memberId));

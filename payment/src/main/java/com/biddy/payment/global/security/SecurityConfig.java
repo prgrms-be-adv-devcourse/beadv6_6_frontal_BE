@@ -46,6 +46,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/payments/deposits/adjust").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/payments/settlements/monthly").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/payments/settlements/ready/complete").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

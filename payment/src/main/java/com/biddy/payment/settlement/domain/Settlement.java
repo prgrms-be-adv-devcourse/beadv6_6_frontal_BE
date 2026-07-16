@@ -107,6 +107,17 @@ public class Settlement {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void markReady() {
+        if (this.status == SettlementStatus.READY || this.status == SettlementStatus.COMPLETED) {
+            return;
+        }
+        if (this.status == SettlementStatus.CANCELLED) {
+            throw new IllegalStateException("취소된 정산은 정산 가능 상태로 변경할 수 없습니다.");
+        }
+        this.status = SettlementStatus.READY;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void cancel() {
         if (this.status == SettlementStatus.CANCELLED) {
             return;

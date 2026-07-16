@@ -22,7 +22,7 @@ public class PurchaseConfirmedEventConsumer {
     public void consume(String payload) {
         try {
             PurchaseConfirmedEvent event = objectMapper.readValue(payload, PurchaseConfirmedEvent.class);
-            settlementService.completeByOrderId(event.orderId());
+            settlementService.markReadyByOrderId(event.orderId());
         } catch (JsonProcessingException exception) {
             throw new IllegalArgumentException("PurchaseConfirmedEvent payload를 읽을 수 없습니다.", exception);
         }

@@ -77,4 +77,71 @@ class SettlementServiceTest {
         DepositBalanceResponse balance = depositService.getBalance(sellerId);
         assertThat(balance.balance()).isEqualTo(76_000L);
     }
+
+    @Test
+    void markReadyByOrderId_marksPendingSettlementReadyWithoutIncreasingSellerDeposit() {
+        Long orderId = 302L;
+        Long sellerId = 32L;
+        Long amount = 50_000L;
+
+        settlementService.createPendingSettlement(new PaymentCompletedEvent(
+                UUID.randomUUID(),
+                3L,
+                orderId,
+                12L,
+                sellerId,
+                amount,
+                PaymentMethod.NORMAL,
+                LocalDateTime.now()
+        ));
+
+        settlementService.markReadyByOrderId(orderId);
+
+        var settlement = settlementRepository.findByOrderId(orderId).orElseThrow();
+        assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.READY);
+
+        DepositBalanceResponse balance = depositService.getBalance(sellerId);
+        assertThat(balance.balance()).isZero();
+    }
+
+    @Test
+    void completeReadySettlements_completesOnlyReadySettlementsAndIncreasesSellerDeposit() {
+        Long readyOrderId = 303L;
+        Long pendingOrderId = 304L;
+        Long readySellerId = 33L;
+        Long pendingSellerId = 34L;
+
+        settlementService.createPendingSettlement(new PaymentCompletedEvent(
+                UUID.randomUUID(),
+                4L,
+                readyOrderId,
+                13L,
+                readySellerId,
+                120_000L,
+                PaymentMethod.WALLET,
+                LocalDateTime.now()
+        ));
+        settlementService.createPendingSettlement(new PaymentCompletedEvent(
+                UUID.randomUUID(),
+                5L,
+                pendingOrderId,
+                14L,
+                pendingSellerId,
+                70_000L,
+                PaymentMethod.WALLET,
+                LocalDateTime.now()
+        ));
+        settlementService.markReadyByOrderId(readyOrderId);
+
+        int completedCount = settlementService.completeReadySettlements();
+
+        var readySettlement = settlementRepository.findByOrderId(readyOrderId).orElseThrow();
+        var pendingSettlement = settlementRepository.findByOrderId(pendingOrderId).orElseThrow();
+        assertThat(completedCount).isEqualTo(1);
+        assertThat(readySettlement.getStatus()).isEqualTo(SettlementStatus.COMPLETED);
+        assertThat(pendingSettlement.getStatus()).isEqualTo(SettlementStatus.PENDING);
+
+        assertThat(depositService.getBalance(readySellerId).balance()).isEqualTo(114_000L);
+        assertThat(depositService.getBalance(pendingSellerId).balance()).isZero();
+    }
 }

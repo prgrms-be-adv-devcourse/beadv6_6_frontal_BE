@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: settlement-batch
+spec:
+  schedule: "30 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: settlement-batch
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: settlement-batch
+              image: curlimages/curl:8.10.1
+              imagePullPolicy: IfNotPresent
+              args:
+                - "-fsS"
+                - "-X"
+                - "POST"
+                - "-H"
+                - "X-Member-Id: 0"
+                - "-H"
+                - "X-Member-Role: ADMIN"
+                - "http://payment:8085/api/payments/settlements/ready/complete"

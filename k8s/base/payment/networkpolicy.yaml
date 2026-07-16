@@ -1,8 +1,8 @@
-# payment는 다른 서비스가 직접 호출하지 않으므로 apigateway에서만 접근 허용
+# payment는 apigateway와 정산 CronJob에서만 접근 허용
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: payment-allow-apigateway
+  name: payment-allow-apigateway-and-settlement-batch
 spec:
   podSelector:
     matchLabels:
@@ -14,6 +14,9 @@ spec:
         - podSelector:
             matchLabels:
               app: apigateway
+        - podSelector:
+            matchLabels:
+              app: settlement-batch
       ports:
         - protocol: TCP
           port: 8085
