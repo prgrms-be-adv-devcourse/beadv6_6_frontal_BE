@@ -3,7 +3,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: apigateway-allow-ingress-nginx
+  name: apigateway-allow-ingress
 spec:
   podSelector:
     matchLabels:
