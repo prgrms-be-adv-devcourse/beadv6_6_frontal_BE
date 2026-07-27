@@ -38,7 +38,7 @@
 | 토큰 파일 생성 | 부분 완료 | `/tmp/auction-users.json`, 권한 `600`; 현재 예시 토큰이므로 실제 토큰 입력 필요 |
 | 결과 디렉터리 생성 | 완료 | `k6-tests/results` |
 | PC -> NAS PostgreSQL 포트 | 통과 | `1.234.196.160:15432 - accepting connections` |
-| 전용 테스트 Auction 준비 | 재실행 필요 | 최초 `A-K6-PREF01`은 UTC/KST 차이로 즉시 종료됨; KST 보정 SQL 반영 완료 |
+| 전용 테스트 Auction 준비 | 완료 | `A-K6-PREF01`, KST 보정 후 공개 API에서 `LIVE`·현재가 100000·입찰 0건 확인 |
 | Preflight 쓰기 | 대기 | 전용 Auction과 입찰자 JWT 파일 필요 |
 | Read Baseline | 대기 | Smoke 통과 후 5~10 VU 실행 |
 | Bid Hotspot | 대기 | 서로 다른 입찰 계정 3명부터 시작 |
@@ -326,9 +326,8 @@ Stress에서 확인한 안전 VU의 50~60%로 시작한다.
 
 1. `/tmp/auction-users.json`의 `REPLACE_...` 값을 판매자가 아닌 실제 입찰자 토큰으로 교체한다.
 2. AWS의 `biddy-secret`에서 PostgreSQL 사용자명과 비밀번호를 본인 터미널에서 확인한다.
-3. KST 보정된 준비 SQL로 `A-K6-PREF01` 경매를 다시 생성한다.
-4. 생성 결과를 공유하되 DB 비밀번호와 토큰은 공유하지 않는다.
-5. Preflight를 실행한다.
-6. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
+3. `A-K6-PREF01` 준비와 공개 API의 `LIVE` 상태 확인은 완료됐다.
+4. 토큰 파일 준비가 완료되면 Preflight를 실행한다.
+5. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
 
 토큰 값 자체는 공유하지 않고 준비된 로컬 파일 경로만 사용한다.
