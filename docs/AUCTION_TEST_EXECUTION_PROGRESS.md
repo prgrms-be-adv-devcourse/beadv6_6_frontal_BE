@@ -1,6 +1,6 @@
 # Auction AWS k6 테스트 실행 현황
 
-> 최종 갱신: 2026-07-27 14:25 KST
+> 최종 갱신: 2026-07-27 14:30 KST
 > 상세 실행 절차와 명령은 [`k6-tests/AUCTION_TEST_EXECUTION_PROGRESS.md`](../k6-tests/AUCTION_TEST_EXECUTION_PROGRESS.md)를 기준으로 한다.
 
 ## 1. 테스트 환경
@@ -54,6 +54,29 @@
 | Preflight 2차 | 대기 | 경매를 `LIVE`로 재생성한 뒤 실행 |
 | Read Baseline 이후 | 대기 | Preflight와 DB 정합성 통과 후 진행 |
 | Stress·Soak | 미승인 | Phase 0~3 통과와 팀 승인 필요 |
+
+### 인증 테스트 계정 전제 조건
+
+k6의 `AUTH_MODE=credentials`는 회원가입 기능이 아니라 기존 회원의 로그인 기능을 사용한다.
+
+```text
+이메일 인증 완료
+→ 회원가입 완료
+→ 회원 상태 ACTIVE
+→ /tmp/auction-credentials.json에 이메일·비밀번호 저장
+→ k6 setup()에서 POST /api/members/login
+→ GET /api/members/me로 memberId 확인
+→ Auction 입찰 요청
+```
+
+- Member 서비스의 회원가입은 이메일 인증 이력이 없으면 `이메일 인증이 필요합니다.`로 거절된다.
+- k6는 `/api/members/email/send`, `/email/verify`, `/signup`을 실행하지 않는다.
+- 존재하지 않는 이메일, 틀린 비밀번호, `SUSPENDED` 또는 `WITHDRAWN` 회원은 로그인할 수 없다.
+- 입찰자는 테스트 경매의 판매자와 다른 회원이어야 한다.
+- 로그인할 때 기존 Refresh Token이 교체되므로 개인 계정보다 별도 `ACTIVE` 테스트 계정을 권장한다.
+- 현재 `/tmp/auction-credentials.json`은 파일 형식만 검증된 상태이며 실제 AWS 로그인 성공 여부는 Preflight 2차에서 확인한다.
+
+현재 발생한 `password authentication failed for user "biddy"`는 Member 이메일 로그인이 아니라 NAS PostgreSQL 접속 계정의 오류다. 회원 이메일 인증 여부와 관계없이 DB 비밀번호부터 바로잡아 테스트 경매를 생성해야 한다.
 
 ## 3. 완료된 읽기 Smoke
 
