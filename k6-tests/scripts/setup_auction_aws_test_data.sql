@@ -2,6 +2,7 @@
 --
 -- 관점: 성능 테스트가 운영 경매와 기존 Bid 이력에 영향을 주지 않도록 데이터를 격리한다.
 -- 개선 목적: 재실행 가능한 동일 초기 상태를 만들어 변경 전후 결과를 비교한다.
+-- 주의: Auction은 LocalDateTime과 KST 기준 스케줄러를 사용하므로 timestamp 값을 Asia/Seoul로 저장한다.
 --
 -- 실행 예시:
 -- psql -h <HOST> -p 15432 -U <USER> -d biddy_auction \
@@ -85,12 +86,12 @@ INSERT INTO public.auction (
     0,
     0,
     'LIVE',
-    CURRENT_TIMESTAMP - INTERVAL '1 minute',
-    CURRENT_TIMESTAMP + ((:'ends_in_seconds')::INTEGER * INTERVAL '1 second'),
+    (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul') - INTERVAL '1 minute',
+    (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul') + ((:'ends_in_seconds')::INTEGER * INTERVAL '1 second'),
     NULL,
     NULL,
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
+    CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul',
+    CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul'
 );
 
 COMMIT;

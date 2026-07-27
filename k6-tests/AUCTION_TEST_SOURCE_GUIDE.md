@@ -70,6 +70,8 @@ psql -h 1.234.196.160 -p 15432 -U "$DB_USER" -W -d biddy_auction \
 
 Closing Spike는 `ends_in_seconds`를 실행 준비 시간을 고려해 약 60초로 지정한다. 정합성 결과를 보존한 후 `cleanup_auction_aws_test_data.sql`로 해당 `A-K6-` 경매만 정리한다.
 
+Auction의 시간 컬럼은 `LocalDateTime`이고 현재 AWS 스케줄러는 KST 기준으로 동작한다. 준비 SQL은 PostgreSQL 세션의 기본 시간대와 무관하게 `Asia/Seoul` 시각으로 저장한다. 생성 직후 상세 API에서 `status=LIVE`와 종료까지 남은 시간을 반드시 확인한다.
+
 ## 5. 실행 순서
 
 결과 디렉터리를 먼저 만든다.
