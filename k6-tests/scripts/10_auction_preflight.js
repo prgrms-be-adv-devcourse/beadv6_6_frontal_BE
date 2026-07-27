@@ -16,13 +16,17 @@ import {
   printTestIntent,
   publicParams,
   recordReadResponse,
+  resolveAuthUsers,
   safeJson,
   validateUsers,
   verifyConsistency,
 } from './lib/auction-test-utils.js';
 
-const tokenFile = __ENV.TOKENS_FILE || '../data/auction-users.example.json';
-const users = new SharedArray('preflight auction users', () => JSON.parse(open(tokenFile)));
+const authMode = __ENV.AUTH_MODE || 'token';
+const authFile = authMode === 'credentials'
+  ? (__ENV.CREDENTIALS_FILE || '../data/auction-users.credentials.example.json')
+  : (__ENV.TOKENS_FILE || '../data/auction-users.example.json');
+const authEntries = new SharedArray('preflight auction auth entries', () => JSON.parse(open(authFile)));
 const preflightFailures = new Rate('auction_preflight_failures');
 
 export const options = {
@@ -44,7 +48,7 @@ function verify(name, response, predicate) {
   }
   return passed;
 }
-export default function () {
+export function setup() {
   const config = configuration({ write: true });
   printTestIntent({
     name: 'Auction AWS Preflight',
@@ -53,14 +57,25 @@ export default function () {
     improvement: 'Gateway 인증 규칙과 API 계약을 먼저 고쳐 성능 결과의 전제 조건을 확보',
   });
 
+  const auctionResponse = getAuction(config.baseUrl, config.auctionId, null, 'preflight_setup');
+  if (auctionResponse.status !== 200) throw new Error(`Auction detail preflight failed: ${auctionResponse.status}`);
+  const auction = safeJson(auctionResponse);
+  if (!auction || auction.status !== 'LIVE') throw new Error(`Preflight auction must be LIVE; status=${auction?.status}`);
+
+  const users = resolveAuthUsers(config.baseUrl, authEntries, authMode);
+  validateUsers(users, 1, auction.sellerId);
+  return { ...config, auction, users };
+}
+
+export default function (data) {
   const feedResponse = http.get(
-    `${config.baseUrl}/api/v1/auctions?status=LIVE&page=0&size=5`,
+    `${data.baseUrl}/api/v1/auctions?status=LIVE&page=0&size=5`,
     publicParams('auction_feed', 'preflight'),
   );
   recordReadResponse(feedResponse);
   verify('public auction feed returns 200', feedResponse, (r) => r.status === 200);
 
-  const publicDetailResponse = getAuction(config.baseUrl, config.auctionId, null, 'preflight');
+  const publicDetailResponse = getAuction(data.baseUrl, data.auctionId, null, 'preflight');
   if (!verify('public auction detail returns 200', publicDetailResponse, (r) => r.status === 200)) return;
 
   const auction = safeJson(publicDetailResponse);
@@ -68,11 +83,9 @@ export default function () {
     preflightFailures.add(true, { check_name: 'auction_is_live' });
     throw new Error(`Preflight auction must be LIVE; status=${auction?.status}`);
   }
-  validateUsers(users, 1, auction.sellerId);
-
   const minimumBid = Number(auction.currentBid) + Number(auction.minIncrement);
   const unauthenticatedBid = http.post(
-    `${config.baseUrl}/api/v1/auctions/${config.auctionId}/bids`,
+    `${data.baseUrl}/api/v1/auctions/${data.auctionId}/bids`,
     JSON.stringify({ amount: minimumBid }),
     {
       ...publicParams('place_bid_without_token', 'preflight'),
@@ -81,17 +94,17 @@ export default function () {
   );
   verify('bid without JWT returns 401', unauthenticatedBid, (r) => r.status === 401);
 
-  const user = users[0];
+  const user = data.users[0];
   const authenticatedDetail = http.get(
-    `${config.baseUrl}/api/v1/auctions/${config.auctionId}`,
+    `${data.baseUrl}/api/v1/auctions/${data.auctionId}`,
     authParams(user.token, 'auction_detail_with_token', 'preflight'),
   );
   recordReadResponse(authenticatedDetail);
   verify('authenticated auction detail returns 200', authenticatedDetail, (r) => r.status === 200);
 
   const bidResponse = placeBid(
-    config.baseUrl,
-    config.auctionId,
+    data.baseUrl,
+    data.auctionId,
     minimumBid,
     user.token,
     'preflight',
@@ -107,7 +120,7 @@ export default function () {
     preflightFailures.add(!bodyPassed, { check_name: 'bid_response_contract' });
   }
 
-  const consistent = verifyConsistency(config.baseUrl, config.auctionId, 'preflight');
+  const consistent = verifyConsistency(data.baseUrl, data.auctionId, 'preflight');
   preflightFailures.add(!consistent, { check_name: 'post_bid_consistency' });
-  console.log(`Preflight completed: runId=${config.runId}, auctionId=${config.auctionId}`);
+  console.log(`Preflight completed: runId=${data.runId}, auctionId=${data.auctionId}, authMode=${authMode}`);
 }

@@ -67,6 +67,48 @@ export function validateUsers(users, minimumCount, sellerId) {
   }
 }
 
+export function resolveAuthUsers(baseUrl, entries, authMode) {
+  if (authMode === 'token') return entries;
+  if (authMode !== 'credentials') {
+    throw new Error(`Unknown AUTH_MODE=${authMode}. Use token or credentials.`);
+  }
+
+  return entries.map((credential, index) => {
+    if (!credential?.email || !credential?.password
+      || credential.email.includes('REPLACE_') || credential.password.includes('REPLACE_')) {
+      throw new Error(`Credential entry ${index} requires a real email and password.`);
+    }
+
+    const loginResponse = http.post(
+      `${baseUrl}/api/members/login`,
+      JSON.stringify({ email: credential.email, password: credential.password }),
+      {
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        tags: { endpoint: 'auth_login', viewpoint: 'setup', test_scope: 'authentication' },
+        timeout: __ENV.REQUEST_TIMEOUT || '10s',
+      },
+    );
+    const loginBody = safeJson(loginResponse);
+    if (loginResponse.status !== 200 || !loginBody?.accessToken) {
+      authFailures.add(true, { endpoint: 'auth_login' });
+      throw new Error(`Login failed for credential entry ${index}: status=${loginResponse.status}`);
+    }
+
+    const meResponse = http.get(
+      `${baseUrl}/api/members/me`,
+      authParams(loginBody.accessToken, 'member_me', 'setup'),
+    );
+    const member = safeJson(meResponse);
+    if (meResponse.status !== 200 || !Number.isSafeInteger(Number(member?.id))) {
+      authFailures.add(true, { endpoint: 'member_me' });
+      throw new Error(`Member lookup failed for credential entry ${index}: status=${meResponse.status}`);
+    }
+
+    authFailures.add(false, { endpoint: 'auth_setup' });
+    return { memberId: Number(member.id), token: loginBody.accessToken };
+  });
+}
+
 export function publicParams(endpoint, viewpoint) {
   return {
     headers: { Accept: 'application/json' },

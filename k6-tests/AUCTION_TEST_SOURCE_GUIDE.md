@@ -38,6 +38,36 @@
 
 ## 4. 토큰 파일 준비
 
+### 4.1 권장 — Swagger와 같은 로그인 API 사용
+
+k6는 `setup()`에서 Swagger와 동일한 `POST /api/members/login`을 한 번 호출하고, 응답의 `accessToken`을 Auction 요청에 사용한다. 이어서 `GET /api/members/me`로 회원 ID를 확인한다. 이 로그인 요청은 Auction 전용 지연 메트릭에 포함하지 않는다.
+
+로그인하면 해당 회원의 기존 Refresh Token이 교체되므로 개인 계정보다 전용 테스트 계정을 사용한다. 실제 이메일과 비밀번호는 Git에 저장하지 않고 `/tmp` 파일에만 보관한다.
+
+```bash
+read "LOGIN_EMAIL?테스트 로그인 이메일: "
+read -s "LOGIN_PASSWORD?테스트 로그인 비밀번호: "
+echo
+
+jq -n \
+  --arg email "$LOGIN_EMAIL" \
+  --arg password "$LOGIN_PASSWORD" \
+  '[{email: $email, password: $password}]' \
+  > /tmp/auction-credentials.json
+
+chmod 600 /tmp/auction-credentials.json
+unset LOGIN_EMAIL LOGIN_PASSWORD
+```
+
+Preflight 실행 시 다음 옵션을 사용한다.
+
+```text
+AUTH_MODE=credentials
+CREDENTIALS_FILE=/tmp/auction-credentials.json
+```
+
+### 4.2 대안 — 이미 발급된 Access Token 사용
+
 예제 파일을 복사하되 실제 토큰 파일은 Git에 커밋하지 않는다.
 
 ```bash
@@ -91,7 +121,7 @@ jq -e '
   || echo "TOKEN NOT READY"
 ```
 
-### 4.1 전용 Auction 준비
+### 4.3 전용 Auction 준비
 
 테스트용 판매자·상품이 존재하는지 먼저 확인한 후 현재 스키마용 SQL을 실행한다. `product_id`는 다른 Auction이 사용하지 않는 테스트 전용 상품 ID여야 한다.
 
@@ -130,7 +160,8 @@ mkdir -p k6-tests/results
 k6 run \
   -e BASE_URL=https://<AWS_API_DOMAIN> \
   -e AUCTION_ID=A-K6-PREF01 \
-  -e TOKENS_FILE=/tmp/auction-users.json \
+  -e AUTH_MODE=credentials \
+  -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
   -e RUN_ID=20260727-preflight-01 \
   -e ALLOW_AUCTION_WRITES=true \
   --summary-export=k6-tests/results/20260727-preflight-01.json \
@@ -155,7 +186,8 @@ k6 run \
 k6 run \
   -e BASE_URL=https://<AWS_API_DOMAIN> \
   -e AUCTION_ID=A-K6-HOT01 \
-  -e TOKENS_FILE=/tmp/auction-users.json \
+  -e AUTH_MODE=credentials \
+  -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
   -e RUN_ID=20260727-hotspot-01 \
   -e PROFILE=smoke \
   -e ALLOW_AUCTION_WRITES=true \
@@ -173,7 +205,8 @@ k6 run \
 k6 run \
   -e BASE_URL=https://<AWS_API_DOMAIN> \
   -e AUCTION_ID=A-K6-SPIKE1 \
-  -e TOKENS_FILE=/tmp/auction-users.json \
+  -e AUTH_MODE=credentials \
+  -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
   -e RUN_ID=20260727-spike-01 \
   -e ALLOW_AUCTION_WRITES=true \
   --summary-export=k6-tests/results/20260727-spike-01.json \
@@ -189,7 +222,8 @@ Preflight, Baseline, Hotspot, Spike가 모두 성공한 뒤 팀 승인 후 실�
 k6 run \
   -e BASE_URL=https://<AWS_API_DOMAIN> \
   -e AUCTION_ID=A-K6-STRS01 \
-  -e TOKENS_FILE=/tmp/auction-users.json \
+  -e AUTH_MODE=credentials \
+  -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
   -e ALLOW_AUCTION_WRITES=true \
   -e ALLOW_HIGH_LOAD=true \
   k6-tests/scripts/14_auction_mixed_stress.js
@@ -198,7 +232,8 @@ k6 run \
 k6 run \
   -e BASE_URL=https://<AWS_API_DOMAIN> \
   -e AUCTION_ID=A-K6-SOAK01 \
-  -e TOKENS_FILE=/tmp/auction-users.json \
+  -e AUTH_MODE=credentials \
+  -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
   -e SOAK_DURATION=10m \
   -e ALLOW_AUCTION_WRITES=true \
   -e ALLOW_HIGH_LOAD=true \

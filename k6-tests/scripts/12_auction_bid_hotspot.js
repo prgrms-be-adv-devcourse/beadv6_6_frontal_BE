@@ -13,13 +13,17 @@ import {
   getAuction,
   placeBid,
   printTestIntent,
+  resolveAuthUsers,
   safeJson,
   validateUsers,
   verifyConsistency,
 } from './lib/auction-test-utils.js';
 
-const tokenFile = __ENV.TOKENS_FILE || '../data/auction-users.example.json';
-const users = new SharedArray('hotspot auction users', () => JSON.parse(open(tokenFile)));
+const authMode = __ENV.AUTH_MODE || 'token';
+const authFile = authMode === 'credentials'
+  ? (__ENV.CREDENTIALS_FILE || '../data/auction-users.credentials.example.json')
+  : (__ENV.TOKENS_FILE || '../data/auction-users.example.json');
+const authEntries = new SharedArray('hotspot auction auth entries', () => JSON.parse(open(authFile)));
 const profile = __ENV.PROFILE || 'smoke';
 const profiles = {
   smoke: {
@@ -80,6 +84,7 @@ export function setup() {
   if (response.status !== 200) throw new Error(`Auction detail preflight failed: ${response.status}`);
   const auction = safeJson(response);
   assertAuctionCanRun(auction, selected.minimumRemainingSeconds);
+  const users = resolveAuthUsers(config.baseUrl, authEntries, authMode);
   validateUsers(users, selected.maxVus, auction.sellerId);
 
   return {
@@ -88,10 +93,11 @@ export function setup() {
     minIncrement: Number(auction.minIncrement),
     initialBidCount: Number(auction.bidCount),
     maxVus: selected.maxVus,
+    users,
   };
 }
 export default function (data) {
-  const user = users[__VU - 1];
+  const user = data.users[__VU - 1];
   const amount = candidateAmount(data.currentBid, data.minIncrement, data.maxVus);
   const response = placeBid(data.baseUrl, data.auctionId, amount, user.token, 'bid_hotspot');
 

@@ -35,7 +35,7 @@
 | 공개 Auction 목록 | 통과 | LIVE Auction 조회 HTTP 200 |
 | 신규 k6 소스 정적 검증 | 통과 | `10_`~`15_` 전체 `k6 inspect` 성공 |
 | PC -> AWS 읽기 Smoke | 통과 | 1 VU, 시스템 오류 0%, p95 92.87ms |
-| 토큰 파일 생성 | 부분 완료 | `/tmp/auction-users.json`, 권한 `600`; 현재 예시 토큰이므로 실제 토큰 입력 필요 |
+| 인증 입력 준비 | 대기 | 권장: `/tmp/auction-credentials.json`; 대안 토큰 파일은 현재 예시 값 |
 | 결과 디렉터리 생성 | 완료 | `k6-tests/results` |
 | PC -> NAS PostgreSQL 포트 | 통과 | `1.234.196.160:15432 - accepting connections` |
 | 전용 테스트 Auction 준비 | 완료 | `A-K6-PREF01`, KST 보정 후 공개 API에서 `LIVE`·현재가 100000·입찰 0건 확인 |
@@ -91,6 +91,29 @@ k6 run \
 이 테스트는 공개 경매에 쓰기를 수행하지 않았다. 1 VU 결과이므로 처리 한계가 아니라 다음 단계 실행 전에 PC와 AWS 경로가 정상임을 확인한 결과다.
 
 ## 4. 토큰 준비 방법
+
+### 4.1 권장 — k6가 로그인 API로 토큰 발급
+
+Swagger의 로그인과 같은 방식으로 k6 `setup()`이 `POST /api/members/login`을 호출할 수 있다. 응답의 Access Token은 메모리에서 Auction 요청에 전달하고 결과나 로그에 출력하지 않는다.
+
+로그인 시 기존 Refresh Token이 교체되므로 개인 계정보다 테스트 전용 계정을 사용한다. 자격증명 파일은 다음과 같이 로컬 `/tmp`에만 생성한다.
+
+```bash
+read "LOGIN_EMAIL?테스트 로그인 이메일: "
+read -s "LOGIN_PASSWORD?테스트 로그인 비밀번호: "
+echo
+
+jq -n \
+  --arg email "$LOGIN_EMAIL" \
+  --arg password "$LOGIN_PASSWORD" \
+  '[{email: $email, password: $password}]' \
+  > /tmp/auction-credentials.json
+
+chmod 600 /tmp/auction-credentials.json
+unset LOGIN_EMAIL LOGIN_PASSWORD
+```
+
+### 4.2 대안 — 브라우저 Access Token 사용
 
 토큰은 채팅, 문서, Git 커밋 또는 명령행 인수에 직접 넣지 않는다. 개발자 PC의 임시 파일에 저장한다.
 
@@ -201,7 +224,8 @@ mkdir -p k6-tests/results
 k6 run \
   -e BASE_URL=https://43.202.187.240.nip.io \
   -e AUCTION_ID=A-K6-PREF01 \
-  -e TOKENS_FILE=/tmp/auction-users.json \
+  -e AUTH_MODE=credentials \
+  -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
   -e RUN_ID=20260727-preflight-01 \
   -e ALLOW_AUCTION_WRITES=true \
   --summary-export=k6-tests/results/20260727-preflight-01.json \
@@ -330,10 +354,9 @@ Stress에서 확인한 안전 VU의 50~60%로 시작한다.
 
 ## 9. 현재 다음 행동
 
-1. `/tmp/auction-users.json`의 `REPLACE_...` 값을 판매자가 아닌 실제 입찰자 토큰으로 교체한다.
-2. AWS의 `biddy-secret`에서 PostgreSQL 사용자명과 비밀번호를 본인 터미널에서 확인한다.
-3. `A-K6-PREF01` 준비와 공개 API의 `LIVE` 상태 확인은 완료됐다.
-4. 토큰 파일 준비가 완료되면 Preflight를 실행한다.
-5. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
+1. 권장 방식으로 `/tmp/auction-credentials.json`에 판매자가 아닌 테스트 계정 1개를 준비한다.
+2. `A-K6-PREF01` 준비와 공개 API의 `LIVE` 상태 확인은 완료됐다.
+3. `AUTH_MODE=credentials`로 Preflight를 실행한다.
+4. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
 
 토큰 값 자체는 공유하지 않고 준비된 로컬 파일 경로만 사용한다.

@@ -16,13 +16,17 @@ import {
   printTestIntent,
   publicParams,
   recordReadResponse,
+  resolveAuthUsers,
   safeJson,
   validateUsers,
   verifyConsistency,
 } from './lib/auction-test-utils.js';
 
-const tokenFile = __ENV.TOKENS_FILE || '../data/auction-users.example.json';
-const users = new SharedArray('soak auction users', () => JSON.parse(open(tokenFile)));
+const authMode = __ENV.AUTH_MODE || 'token';
+const authFile = authMode === 'credentials'
+  ? (__ENV.CREDENTIALS_FILE || '../data/auction-users.credentials.example.json')
+  : (__ENV.TOKENS_FILE || '../data/auction-users.example.json');
+const authEntries = new SharedArray('soak auction auth entries', () => JSON.parse(open(authFile)));
 const soakVus = Number(__ENV.SOAK_VUS || 10);
 const soakDuration = __ENV.SOAK_DURATION || '10m';
 
@@ -61,6 +65,7 @@ export function setup() {
   if (response.status !== 200) throw new Error(`Auction detail preflight failed: ${response.status}`);
   const auction = safeJson(response);
   assertAuctionCanRun(auction, Number(__ENV.MIN_REMAINING_SECONDS || 900));
+  const users = resolveAuthUsers(config.baseUrl, authEntries, authMode);
   validateUsers(users, soakVus, auction.sellerId);
 
   return {
@@ -68,6 +73,7 @@ export function setup() {
     currentBid: Number(auction.currentBid),
     minIncrement: Number(auction.minIncrement),
     maxVus: soakVus,
+    users,
   };
 }
 export default function (data) {
@@ -85,7 +91,7 @@ export default function (data) {
     const response = http.get(url, publicParams(endpoint, 'soak'));
     recordReadResponse(response);
   } else {
-    const user = users[__VU - 1];
+    const user = data.users[__VU - 1];
     const amount = candidateAmount(data.currentBid, data.minIncrement, data.maxVus);
     placeBid(data.baseUrl, data.auctionId, amount, user.token, 'soak');
   }

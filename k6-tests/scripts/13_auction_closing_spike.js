@@ -13,13 +13,17 @@ import {
   getAuction,
   placeBid,
   printTestIntent,
+  resolveAuthUsers,
   safeJson,
   validateUsers,
   verifyConsistency,
 } from './lib/auction-test-utils.js';
 
-const tokenFile = __ENV.TOKENS_FILE || '../data/auction-users.example.json';
-const users = new SharedArray('closing spike auction users', () => JSON.parse(open(tokenFile)));
+const authMode = __ENV.AUTH_MODE || 'token';
+const authFile = authMode === 'credentials'
+  ? (__ENV.CREDENTIALS_FILE || '../data/auction-users.credentials.example.json')
+  : (__ENV.TOKENS_FILE || '../data/auction-users.example.json');
+const authEntries = new SharedArray('closing spike auction auth entries', () => JSON.parse(open(authFile)));
 const maxVus = Number(__ENV.SPIKE_MAX_VUS || 30);
 const afterEndAccepted = new Counter('auction_after_end_accepted');
 const closingStateFailures = new Rate('auction_closing_state_failures');
@@ -70,6 +74,7 @@ export function setup() {
   if (remainingSeconds < minimum || remainingSeconds > maximum) {
     throw new Error(`Auction must end in ${minimum}~${maximum}s; actual=${remainingSeconds.toFixed(1)}s.`);
   }
+  const users = resolveAuthUsers(config.baseUrl, authEntries, authMode);
   validateUsers(users, maxVus, auction.sellerId);
   afterEndAccepted.add(0);
 
@@ -79,10 +84,11 @@ export function setup() {
     minIncrement: Number(auction.minIncrement),
     endsAtMillis: Date.parse(auction.endsAt),
     maxVus,
+    users,
   };
 }
 export default function (data) {
-  const user = users[__VU - 1];
+  const user = data.users[__VU - 1];
   const amount = candidateAmount(data.currentBid, data.minIncrement, data.maxVus);
   const requestStartedAt = Date.now();
   const response = placeBid(data.baseUrl, data.auctionId, amount, user.token, 'closing_spike');
