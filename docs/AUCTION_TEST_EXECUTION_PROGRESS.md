@@ -1,6 +1,6 @@
 # Auction AWS k6 테스트 실행 현황
 
-> 최종 갱신: 2026-07-27 14:23 KST
+> 최종 갱신: 2026-07-27 14:25 KST
 > 상세 실행 절차와 명령은 [`k6-tests/AUCTION_TEST_EXECUTION_PROGRESS.md`](../k6-tests/AUCTION_TEST_EXECUTION_PROGRESS.md)를 기준으로 한다.
 
 ## 1. 테스트 환경
@@ -39,7 +39,7 @@
 
 ### 현재 체크포인트
 
-현재 실행할 단계는 **Step 1 — `A-K6-PREF01` 재생성**이다. SQL 출력이 확인되기 전에는 LIVE 상태 확인이나 k6 Preflight를 실행하지 않는다.
+현재 실행할 단계는 **Step 1-A — AWS K3s Secret의 DB 비밀번호 재확인**이다. 비밀번호를 확인하기 전에는 SQL을 재실행하지 않는다.
 
 | 단계 | 상태 | 결과 또는 다음 조건 |
 |---|---|---|
@@ -48,6 +48,7 @@
 | PC -> AWS 읽기 Smoke | 통과 | 1 VU, 오류 0%, p95 92.87ms |
 | 인증 입력 파일 | 준비 완료 | `/tmp/auction-credentials.json` 형식 검증 통과 |
 | AWS 로그인 | 미검증 | 1차 Preflight가 경매 상태 검사에서 먼저 중단됨 |
+| PC -> NAS DB 인증 | 중단 | NAS DB 연결 후 `password authentication failed for user "biddy"` 발생 |
 | 전용 테스트 경매 | 재생성 필요 | `A-K6-PREF01`의 현재 상태 `ENDED` |
 | Preflight 1차 | 중단 | 완료 iteration 0건, 입찰 및 DB 변경 없음 |
 | Preflight 2차 | 대기 | 경매를 `LIVE`로 재생성한 뒤 실행 |
@@ -115,6 +116,38 @@ psql -h 1.234.196.160 -p 15432 -U biddy -W -d biddy_auction \
   -v ends_in_seconds=7200 \
   -f k6-tests/scripts/setup_auction_aws_test_data.sql
 ```
+
+#### Step 1 실행 1차 결과 — DB 인증에서 중단
+
+| 항목 | 결과 |
+|---|---|
+| 실행 시각 | 2026-07-27 14:25 KST |
+| 접속 대상 | `1.234.196.160:15432` |
+| 데이터베이스 | `biddy_auction` |
+| 사용자 | `biddy` |
+| 네트워크 연결 | 성공 — PostgreSQL 서버가 인증 오류를 반환함 |
+| DB 인증 | 실패 |
+| SQL 실행 | 실행되지 않음 |
+| DB 변경 | 없음 |
+| 판정 | **STOPPED — 비밀번호 재확인 필요** |
+
+오류:
+
+```text
+FATAL: password authentication failed for user "biddy"
+```
+
+이 오류는 NAS 주소나 포트 연결 문제가 아니다. PostgreSQL 서버까지 요청이 도착했지만 입력한 비밀번호가 현재 서버의 인증 정보와 일치하지 않는 상태다. SQL 파일을 읽기 전에 연결이 종료됐으므로 `DELETE`, `INSERT`와 `COMMIT`은 실행되지 않았다.
+
+AWS Master에서 다음 명령으로 K3s Secret의 현재 비밀번호를 본인 화면에서만 확인한다. 출력된 값은 채팅, 문서나 Git에 기록하지 않는다.
+
+```bash
+sudo k3s kubectl get secret biddy-secret -n biddy \
+  -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 --decode
+echo
+```
+
+비밀번호 확인 후 같은 SQL 명령을 다시 실행한다. K3s Secret의 비밀번호로도 인증에 실패하면 Secret과 NAS PostgreSQL의 실제 비밀번호가 불일치할 수 있으므로 SQL 재시도를 멈추고 별도 진단한다.
 
 ### 5.2 공개 API 상태 확인
 
