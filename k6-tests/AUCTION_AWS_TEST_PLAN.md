@@ -415,15 +415,21 @@ WHERE a.auction_id = '<TEST_AUCTION_ID>';
 
 ## 12. 실행 위치
 
-### 권장
+현재는 추가 AWS 인스턴스를 사용할 수 없으므로 **개발자 PC에서 k6를 실행해 AWS 공개 API Gateway를 호출한다.**
 
-Auction Pod가 실행되는 Worker와 분리된 전용 부하 발생기 EC2에서 k6를 실행한다.
+```text
+개발자 PC k6 -> 인터넷 -> AWS API Gateway -> Auction Service -> NAS PostgreSQL
+```
 
-### 제한적 대안
+이 결과에는 개발자 PC, 공유기와 인터넷 회선의 영향이 포함된다. 따라서 Auction 서버의 절대 최대 TPS가 아니라 외부 사용자 관점의 E2E 성능 및 개선 전후 상대 비교값으로 사용한다.
 
-전용 EC2가 없으면 `biddy-master`에서 Phase 0과 낮은 부하의 Phase 1만 실행할 수 있다. Master에서 Stress·Spike·Soak를 실행하면 control-plane 자원을 사용해 결과를 왜곡하거나 클러스터를 불안정하게 만들 수 있으므로 금지한다.
+- 가능하면 유선 네트워크를 사용한다.
+- Docker와 Colima는 동시에 실행하지 않는다.
+- 로컬 CPU·메모리·네트워크와 AWS 지표를 동시에 기록한다.
+- 로컬 CPU가 80~90% 이상이거나 목표 부하를 만들지 못하면 서버 한계로 판정하지 않는다.
+- 동일 시나리오를 3~5회 실행해 중앙값과 p95/p99를 비교한다.
 
-Auction Worker 자체에서 k6를 실행하지 않는다. 부하 발생기와 대상 서비스가 CPU·네트워크를 경쟁하면 측정값을 신뢰할 수 없다.
+K3s Master나 Auction Worker에서 k6를 실행하지 않는다. 부하 발생기와 테스트 대상이 CPU·메모리·네트워크를 경쟁하면 측정값이 왜곡되고 클러스터가 불안정해질 수 있다.
 
 ---
 
@@ -454,7 +460,7 @@ k6-tests/results/<RUN_ID>_<PROFILE>_notes.md
 
 ---
 
-## 14. 구현 예정 파일
+## 14. 구현 파일
 
 ```text
 k6-tests/
@@ -465,9 +471,10 @@ k6-tests/
 │   ├── 10_auction_preflight.js
 │   ├── 11_auction_read_baseline.js
 │   ├── 12_auction_bid_hotspot.js
-│   ├── 13_auction_spike.js
-│   ├── 14_auction_stress.js
+│   ├── 13_auction_closing_spike.js
+│   ├── 14_auction_mixed_stress.js
 │   ├── 15_auction_soak.js
+│   ├── lib/auction-test-utils.js
 │   ├── setup_auction_aws_test_data.sql
 │   └── cleanup_auction_aws_test_data.sql
 └── results/
@@ -493,11 +500,11 @@ WebSocket/STOMP 부하 테스트는 HTTP 단계 완료 후 별도 스크립트�
 
 ## 16. 다음 작업
 
-1. AWS API Gateway 도메인과 k6 실행 호스트 확정
+1. AWS API Gateway 도메인과 전용 Auction ID 확정
 2. 현재 스키마에 맞는 테스트 데이터 setup/cleanup SQL 작성
-3. 테스트 사용자와 JWT 파일 형식 확정
-4. Phase 0 Preflight 스크립트 작성 및 코드 리뷰
-5. Phase 0을 AWS에서 2회 연속 실행
-6. 결과와 DB 정합성 확인 후 Phase 1 진행
+3. 실제 테스트 사용자 JWT 파일 준비
+4. 개발자 PC에서 Phase 0 Preflight를 2회 연속 실행
+5. 결과와 DB 정합성 확인 후 Phase 1 진행
+6. Phase 0~3 성공 후 Stress·Soak 실행 승인
 
-계획 승인 전에는 기존 Auction 쓰기·동시성 스크립트를 AWS에서 실행하지 않는다.
+각 스크립트의 관점, 개선 목적과 실행 방법은 `AUCTION_TEST_SOURCE_GUIDE.md`를 따른다.

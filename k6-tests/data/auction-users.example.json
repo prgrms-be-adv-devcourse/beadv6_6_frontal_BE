@@ -1,0 +1,10 @@
+[
+  {
+    "memberId": 10001,
+    "token": "REPLACE_WITH_BIDDER_10001_ACCESS_TOKEN"
+  },
+  {
+    "memberId": 10002,
+    "token": "REPLACE_WITH_BIDDER_10002_ACCESS_TOKEN"
+  }
+]
