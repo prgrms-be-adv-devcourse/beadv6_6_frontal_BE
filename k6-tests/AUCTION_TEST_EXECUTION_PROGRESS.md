@@ -23,7 +23,7 @@
 
 ## 2. 현재 진행 현황
 
-기준 시각: 2026-07-27 13:52 KST
+기준 시각: 2026-07-27 14:03 KST
 
 | 단계 | 상태 | 결과 또는 다음 조건 |
 |---|---|---|
@@ -35,11 +35,11 @@
 | 공개 Auction 목록 | 통과 | LIVE Auction 조회 HTTP 200 |
 | 신규 k6 소스 정적 검증 | 통과 | `10_`~`15_` 전체 `k6 inspect` 성공 |
 | PC -> AWS 읽기 Smoke | 통과 | 1 VU, 시스템 오류 0%, p95 92.87ms |
-| 인증 입력 준비 | 대기 | 권장: `/tmp/auction-credentials.json`; 대안 토큰 파일은 현재 예시 값 |
+| 인증 입력 준비 | 파일 준비 완료 | `/tmp/auction-credentials.json` 형식 검증 통과; 이번 실행은 경매 상태 검사에서 먼저 중단되어 AWS 로그인은 아직 미검증 |
 | 결과 디렉터리 생성 | 완료 | `k6-tests/results` |
 | PC -> NAS PostgreSQL 포트 | 통과 | `1.234.196.160:15432 - accepting connections` |
 | 전용 테스트 Auction 준비 | 재생성 필요 | `A-K6-PREF01`은 준비 절차 검증 후 현재 `ENDED`; Preflight 직전에 종료 시간을 늘려 다시 생성 |
-| Preflight 쓰기 | 대기 | 입찰자 자격증명 파일과 `LIVE` 전용 Auction 필요 |
+| Preflight 쓰기 | 중단·재실행 필요 | 1차 실행은 `A-K6-PREF01`이 `ENDED`여서 `setup()` 중단; 입찰 요청은 실행되지 않음 |
 | Read Baseline | 대기 | Smoke 통과 후 5~10 VU 실행 |
 | Bid Hotspot | 대기 | 서로 다른 입찰 계정 3명부터 시작 |
 | Closing Spike | 대기 | 종료 35~75초 전 전용 경매 필요 |
@@ -89,6 +89,33 @@ k6 run \
 ```
 
 이 테스트는 공개 경매에 쓰기를 수행하지 않았다. 1 VU 결과이므로 처리 한계가 아니라 다음 단계 실행 전에 PC와 AWS 경로가 정상임을 확인한 결과다.
+
+### 3.3 Preflight 1차 실행 — 중단
+
+| 항목 | 결과 |
+|---|---|
+| 실행 ID | `20260727-preflight-01` |
+| 실행 시각 | 2026-07-27 14:02 KST |
+| 인증 방식 | `AUTH_MODE=credentials` |
+| 대상 경매 | `A-K6-PREF01` |
+| 상세 조회 | HTTP 200, 35.451ms |
+| 확인된 경매 상태 | `ENDED` |
+| 완료 iteration | 0 |
+| 입찰 요청 | 실행되지 않음 |
+| 로그인 API | 실행되지 않음 |
+| 판정 | **STOPPED — Preflight 미통과** |
+| 로컬 결과 | `k6-tests/results/20260727-preflight-01.json` — Git 제외 |
+
+오류:
+
+```text
+Error: Preflight auction must be LIVE; status=ENDED
+at setup (k6-tests/scripts/10_auction_preflight.js:63)
+```
+
+`setup()`은 먼저 공개 상세 API로 경매 상태를 확인한 뒤 로그인 API를 호출한다. 이번 실행은 상태 검사에서 종료됐으므로 자격증명 파일의 형식만 준비된 상태이며 실제 로그인 성공 여부는 아직 확인되지 않았다. 기본 시나리오도 시작되지 않아 비로그인 입찰, 인증 입찰과 DB 정합성 검증은 모두 실행되지 않았다.
+
+출력에 실패율과 임계값이 0%로 보이는 항목이 있지만 표본이 0개이므로 PASS로 해석하지 않는다. 유효한 실패 신호는 `setup()` 예외와 완료 iteration 0건이다. 이후 개선 시에는 `setup()`의 사전 조건 실패도 `auction_preflight_failures`에 명시적으로 기록해 요약 출력의 오해를 줄이는 방안을 검토한다.
 
 ## 4. 인증 정보 준비 방법
 
@@ -226,9 +253,9 @@ k6 run \
   -e AUCTION_ID=A-K6-PREF01 \
   -e AUTH_MODE=credentials \
   -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
-  -e RUN_ID=20260727-preflight-01 \
+  -e RUN_ID=20260727-preflight-02 \
   -e ALLOW_AUCTION_WRITES=true \
-  --summary-export=k6-tests/results/20260727-preflight-01.json \
+  --summary-export=k6-tests/results/20260727-preflight-02.json \
   k6-tests/scripts/10_auction_preflight.js
 ```
 
@@ -357,7 +384,7 @@ Stress에서 확인한 안전 VU의 50~60%로 시작한다.
 1. 권장 방식으로 `/tmp/auction-credentials.json`에 판매자가 아닌 테스트 계정 1개를 준비한다.
 2. Setup SQL에서 `ends_in_seconds=7200`으로 `A-K6-PREF01`을 다시 생성한다.
 3. 공개 상세 API에서 `A-K6-PREF01`이 `LIVE`인지 확인한다.
-4. `AUTH_MODE=credentials`로 Preflight를 실행한다.
+4. `RUN_ID=20260727-preflight-02`, `AUTH_MODE=credentials`로 Preflight를 재실행한다.
 5. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
 
 이메일·비밀번호·토큰 값 자체는 공유하지 않고 준비된 로컬 파일 경로만 사용한다.
