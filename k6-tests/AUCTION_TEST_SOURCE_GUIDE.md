@@ -1,5 +1,7 @@
 # Auction k6 테스트 소스 가이드
 
+> 실제 실행 순서와 현재 진행 상태는 [`AUCTION_TEST_EXECUTION_PROGRESS.md`](./AUCTION_TEST_EXECUTION_PROGRESS.md)를 확인한다.
+
 ## 1. 실행 환경 결정
 
 현재 테스트는 개발자 PC에서 k6를 실행해 AWS의 공개 API Gateway를 호출한다.

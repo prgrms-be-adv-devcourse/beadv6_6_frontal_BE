@@ -1,6 +1,7 @@
 # K6 Performance Testing
 
 > AWS Auction 테스트는 [`AUCTION_TEST_SOURCE_GUIDE.md`](./AUCTION_TEST_SOURCE_GUIDE.md)를 먼저 확인하고 `10_auction_preflight.js`부터 순서대로 실행한다.
+> 실제 실행 현황은 [`AUCTION_TEST_EXECUTION_PROGRESS.md`](./AUCTION_TEST_EXECUTION_PROGRESS.md)에 기록한다.
 >
 > `00_`~`03_` 스크립트는 localhost와 과거 API 요청 규격을 사용하는 기존 자료이므로 AWS 테스트에 사용하지 않는다.
 
