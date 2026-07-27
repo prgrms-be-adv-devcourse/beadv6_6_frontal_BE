@@ -23,7 +23,7 @@
 
 ## 2. 현재 진행 현황
 
-기준 시각: 2026-07-27 10:23 KST
+기준 시각: 2026-07-27 13:52 KST
 
 | 단계 | 상태 | 결과 또는 다음 조건 |
 |---|---|---|
@@ -38,8 +38,8 @@
 | 인증 입력 준비 | 대기 | 권장: `/tmp/auction-credentials.json`; 대안 토큰 파일은 현재 예시 값 |
 | 결과 디렉터리 생성 | 완료 | `k6-tests/results` |
 | PC -> NAS PostgreSQL 포트 | 통과 | `1.234.196.160:15432 - accepting connections` |
-| 전용 테스트 Auction 준비 | 완료 | `A-K6-PREF01`, KST 보정 후 공개 API에서 `LIVE`·현재가 100000·입찰 0건 확인 |
-| Preflight 쓰기 | 대기 | 전용 Auction과 입찰자 JWT 파일 필요 |
+| 전용 테스트 Auction 준비 | 재생성 필요 | `A-K6-PREF01`은 준비 절차 검증 후 현재 `ENDED`; Preflight 직전에 종료 시간을 늘려 다시 생성 |
+| Preflight 쓰기 | 대기 | 입찰자 자격증명 파일과 `LIVE` 전용 Auction 필요 |
 | Read Baseline | 대기 | Smoke 통과 후 5~10 VU 실행 |
 | Bid Hotspot | 대기 | 서로 다른 입찰 계정 3명부터 시작 |
 | Closing Spike | 대기 | 종료 35~75초 전 전용 경매 필요 |
@@ -90,7 +90,7 @@ k6 run \
 
 이 테스트는 공개 경매에 쓰기를 수행하지 않았다. 1 VU 결과이므로 처리 한계가 아니라 다음 단계 실행 전에 PC와 AWS 경로가 정상임을 확인한 결과다.
 
-## 4. 토큰 준비 방법
+## 4. 인증 정보 준비 방법
 
 ### 4.1 권장 — k6가 로그인 API로 토큰 발급
 
@@ -190,7 +190,7 @@ psql -h 1.234.196.160 -p 15432 -U "$DB_USER" -W -d biddy_auction \
   -v seller_id=900001 \
   -v start_price=100000 \
   -v min_increment=1000 \
-  -v ends_in_seconds=3600 \
+  -v ends_in_seconds=7200 \
   -f k6-tests/scripts/setup_auction_aws_test_data.sql
 ```
 
@@ -355,8 +355,9 @@ Stress에서 확인한 안전 VU의 50~60%로 시작한다.
 ## 9. 현재 다음 행동
 
 1. 권장 방식으로 `/tmp/auction-credentials.json`에 판매자가 아닌 테스트 계정 1개를 준비한다.
-2. `A-K6-PREF01` 준비와 공개 API의 `LIVE` 상태 확인은 완료됐다.
-3. `AUTH_MODE=credentials`로 Preflight를 실행한다.
-4. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
+2. Setup SQL에서 `ends_in_seconds=7200`으로 `A-K6-PREF01`을 다시 생성한다.
+3. 공개 상세 API에서 `A-K6-PREF01`이 `LIVE`인지 확인한다.
+4. `AUTH_MODE=credentials`로 Preflight를 실행한다.
+5. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
 
-토큰 값 자체는 공유하지 않고 준비된 로컬 파일 경로만 사용한다.
+이메일·비밀번호·토큰 값 자체는 공유하지 않고 준비된 로컬 파일 경로만 사용한다.

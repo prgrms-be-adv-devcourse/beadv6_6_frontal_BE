@@ -5,6 +5,8 @@
 >
 > `00_`~`03_` 스크립트는 localhost와 과거 API 요청 규격을 사용하는 기존 자료이므로 AWS 테스트에 사용하지 않는다.
 
+AWS Auction 쓰기 테스트의 권장 인증 방식은 `AUTH_MODE=credentials`이다. k6가 `setup()`에서 Swagger와 같은 `POST /api/members/login`을 호출하며, 실제 이메일·비밀번호는 Git이 아닌 `/tmp/auction-credentials.json`에만 저장한다. 이미 발급한 Access Token 파일을 쓰는 `token` 모드도 대안으로 지원한다.
+
 > Phase 1: Smoke Tests and Environment Verification
 
 ## 디렉토리 구조

@@ -8,7 +8,7 @@
 | 실행 환경 | AWS K3s 및 NAS PostgreSQL 연동 환경 |
 | 부하 도구 | k6 |
 | 작성일 | 2026-07-27 |
-| 현재 단계 | 계획 수립, 기존 스크립트 재작성 전 |
+| 현재 단계 | Auction 전용 스크립트 구현·정적 검증 완료, Preflight 실행 대기 |
 
 이 문서는 AWS에 배포된 Auction 기능만 검증하기 위한 실행 계획이다. Member는 테스트 토큰 발급을 위한 사전 조건으로만 사용하고 Product, Order, Payment의 성능은 측정 범위에서 제외한다.
 
@@ -91,7 +91,7 @@ Auction에 리소스 제한이 없으므로 첫 실행부터 최대 부하를 �
 
 ## 5. 기존 k6 파일 점검 결과
 
-현재 `k6-tests/scripts`의 Auction 파일은 참고용이며 AWS에서 그대로 실행하지 않는다.
+기존 `00_`~`03_` Auction 파일은 참고용이며 AWS에서 그대로 실행하지 않는다. AWS 실행에는 새로 구현한 `10_`~`15_` 스크립트를 사용한다.
 
 | 파일 | 확인된 문제 |
 |---|---|
@@ -130,15 +130,18 @@ Auction ID는 실제 Entity 길이 제한인 20자 이내로 만든다.
 - 판매자 1명
 - 입찰자 최소 20명
 - Stress 단계는 최대 100명까지 확장
-- 사용자마다 유효한 Access Token을 별도 파일로 준비
-- 토큰 파일은 Git에 커밋하지 않음
-- 한 사용자의 토큰을 모든 VU가 공유하지 않음
+- 권장 방식은 전용 테스트 계정의 이메일·비밀번호를 로컬 파일에 준비하고, k6 `setup()`에서 로그인 API로 Access Token 발급
+- 대안으로 이미 발급한 Access Token 파일 사용 가능
+- 자격증명·토큰 파일은 Git에 커밋하지 않음
+- 한 사용자의 인증 정보를 모든 VU가 공유하지 않음
 
 예정 파일:
 
 ```text
-k6-tests/data/auction-users.example.json  # 형식만 커밋
-k6-tests/data/auction-users.json          # 실제 토큰, Git 제외
+k6-tests/data/auction-users.credentials.example.json  # 로그인 입력 형식만 커밋
+/tmp/auction-credentials.json                     # 실제 자격증명, Git 제외
+k6-tests/data/auction-users.example.json           # 기존 토큰 형식만 커밋
+/tmp/auction-users.json                            # 실제 토큰, Git 제외
 ```
 
 ### 데이터 격리
@@ -160,9 +163,11 @@ k6-tests/data/auction-users.json          # 실제 토큰, Git 제외
 
 | 변수 | 필수 | 예시/설명 |
 |---|---|---|
-| `BASE_URL` | Y | `https://<API_DOMAIN>` |
+| `BASE_URL` | Y | `https://43.202.187.240.nip.io` |
 | `AUCTION_ID` | Y | 테스트별 Auction ID |
-| `TOKENS_FILE` | 쓰기 테스트 | 실제 토큰 JSON 경로 |
+| `AUTH_MODE` | 쓰기 테스트 | 권장 `credentials`, 대안 `token`(기본값) |
+| `CREDENTIALS_FILE` | credentials 모드 | 실제 로그인 자격증명 JSON 경로 |
+| `TOKENS_FILE` | token 모드 | 실제 Access Token JSON 경로 |
 | `RUN_ID` | Y | 실행 결과 구분용 |
 | `PROFILE` | Y | `smoke`, `baseline`, `hotspot`, `spike` |
 | `RESULT_DIR` | N | 기본값 `results` |
@@ -171,14 +176,16 @@ k6-tests/data/auction-users.json          # 실제 토큰, Git 제외
 
 ```bash
 k6 run \
-  -e BASE_URL=https://<API_DOMAIN> \
-  -e AUCTION_ID=A-K6-READ01 \
+  -e BASE_URL=https://43.202.187.240.nip.io \
+  -e AUCTION_ID=A-K6-PREF01 \
+  -e AUTH_MODE=credentials \
+  -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
   -e RUN_ID=20260727-01 \
-  -e PROFILE=smoke \
-  scripts/10_auction_preflight.js
+  -e ALLOW_AUCTION_WRITES=true \
+  k6-tests/scripts/10_auction_preflight.js
 ```
 
-비밀번호와 Access Token을 명령행에 직접 입력하지 않는다. 토큰은 권한이 제한된 파일에서 `open()`으로 읽도록 구현한다.
+비밀번호와 Access Token을 명령행에 직접 입력하지 않는다. 자격증명·토큰은 권한이 제한된 `/tmp` 파일에서 읽는다. 자동 로그인으로 발급한 Access Token은 메모리로만 전달하고 출력하지 않는다. 로그인 시 기존 Refresh Token이 교체될 수 있으므로 개인 계정이 아닌 전용 테스트 계정을 사용한다.
 
 ---
 
@@ -466,6 +473,7 @@ k6-tests/results/<RUN_ID>_<PROFILE>_notes.md
 k6-tests/
 ├── AUCTION_AWS_TEST_PLAN.md
 ├── data/
+│   ├── auction-users.credentials.example.json
 │   └── auction-users.example.json
 ├── scripts/
 │   ├── 10_auction_preflight.js
@@ -490,7 +498,7 @@ WebSocket/STOMP 부하 테스트는 HTTP 단계 완료 후 별도 스크립트�
 |---|---|---|
 | Phase 0 | 스크립트 리뷰, 테스트 데이터 준비 | Auction 담당자 |
 | Phase 1 | Phase 0 성공 | Auction 담당자 |
-| Phase 2 | 유효 토큰 풀과 정합성 SQL 확인 | Auction 담당자 |
+| Phase 2 | 유효한 자격증명 또는 토큰 풀과 정합성 SQL 확인 | Auction 담당자 |
 | Phase 3 | 모니터링 화면 준비 | 인프라 공유 |
 | Phase 4 | Phase 0~3 성공, 시간 공지 | 팀 승인 |
 | Phase 5 | 안전 부하 확정 | 팀 승인 |
@@ -500,11 +508,11 @@ WebSocket/STOMP 부하 테스트는 HTTP 단계 완료 후 별도 스크립트�
 
 ## 16. 다음 작업
 
-1. AWS API Gateway 도메인과 전용 Auction ID 확정
-2. 현재 스키마에 맞는 테스트 데이터 setup/cleanup SQL 작성
-3. 실제 테스트 사용자 JWT 파일 준비
-4. 개발자 PC에서 Phase 0 Preflight를 2회 연속 실행
-5. 결과와 DB 정합성 확인 후 Phase 1 진행
+1. `/tmp/auction-credentials.json`에 판매자가 아닌 전용 테스트 계정 1개 준비
+2. Setup SQL로 `A-K6-PREF01`을 다시 만들고 공개 API에서 `LIVE` 확인
+3. 개발자 PC에서 `AUTH_MODE=credentials`로 Phase 0 Preflight 실행
+4. 결과와 DB 정합성 확인 후 Phase 1 진행
+5. Hotspot용 서로 다른 테스트 계정을 단계별 VU 수만큼 준비
 6. Phase 0~3 성공 후 Stress·Soak 실행 승인
 
 각 스크립트의 관점, 개선 목적과 실행 방법은 `AUCTION_TEST_SOURCE_GUIDE.md`를 따른다.

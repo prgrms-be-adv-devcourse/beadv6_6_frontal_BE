@@ -32,11 +32,12 @@
 - 테스트 Auction ID는 `A-K6-`로 시작해야 한다.
 - 쓰기 테스트는 `ALLOW_AUCTION_WRITES=true`가 필요하다.
 - Stress·Soak 테스트는 추가로 `ALLOW_HIGH_LOAD=true`가 필요하다.
-- JWT는 Git에 커밋하지 않은 파일에서 읽는다.
-- 판매자 토큰은 입찰자 풀에 포함하지 않는다.
+- 로그인 자격증명 또는 JWT 파일은 Git에 커밋하지 않고 `/tmp`에만 둔다.
+- 자동 로그인으로 발급한 Access Token은 `setup()` 결과로만 전달하고 로그나 결과 파일에 출력하지 않는다.
+- 판매자 계정은 입찰자 자격증명·토큰 풀에 포함하지 않는다.
 - 쓰기 테스트 종료 후 상세 API와 Bid 이력을 비교한다.
 
-## 4. 토큰 파일 준비
+## 4. 인증 정보 준비
 
 ### 4.1 권장 — Swagger와 같은 로그인 API 사용
 
@@ -59,12 +60,30 @@ chmod 600 /tmp/auction-credentials.json
 unset LOGIN_EMAIL LOGIN_PASSWORD
 ```
 
+값을 출력하지 않고 파일 형식만 확인한다.
+
+```bash
+jq -e '
+  type == "array" and length > 0 and
+  all(.[];
+    (.email | type) == "string" and (.email | length) > 0 and
+    (.password | type) == "string" and (.password | length) > 0 and
+    (.email | startswith("REPLACE_") | not) and
+    (.password | startswith("REPLACE_") | not)
+  )
+' /tmp/auction-credentials.json >/dev/null \
+  && echo "CREDENTIALS READY" \
+  || echo "CREDENTIALS NOT READY"
+```
+
 Preflight 실행 시 다음 옵션을 사용한다.
 
 ```text
 AUTH_MODE=credentials
 CREDENTIALS_FILE=/tmp/auction-credentials.json
 ```
+
+Hotspot·Spike·Stress에서는 필요한 VU 수만큼 서로 다른 테스트 계정을 배열에 추가한다. 각 계정은 테스트 시작 시 한 번만 로그인하며, 로그인 자체의 성능은 이번 Auction 측정 범위에서 제외한다.
 
 ### 4.2 대안 — 이미 발급된 Access Token 사용
 
@@ -131,12 +150,12 @@ Mac의 zsh에서 다음 명령을 실행하면 사용자명과 비밀번호를 �
 read "DB_USER?PostgreSQL 사용자명: "
 
 psql -h 1.234.196.160 -p 15432 -U "$DB_USER" -W -d biddy_auction \
-  -v auction_id=A-K6-HOT01 \
+  -v auction_id=A-K6-PREF01 \
   -v product_id=900001 \
   -v seller_id=900001 \
   -v start_price=100000 \
   -v min_increment=1000 \
-  -v ends_in_seconds=3600 \
+  -v ends_in_seconds=7200 \
   -f k6-tests/scripts/setup_auction_aws_test_data.sql
 ```
 
@@ -158,7 +177,7 @@ mkdir -p k6-tests/results
 
 ```bash
 k6 run \
-  -e BASE_URL=https://<AWS_API_DOMAIN> \
+  -e BASE_URL=https://43.202.187.240.nip.io \
   -e AUCTION_ID=A-K6-PREF01 \
   -e AUTH_MODE=credentials \
   -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
@@ -172,7 +191,7 @@ k6 run \
 
 ```bash
 k6 run \
-  -e BASE_URL=https://<AWS_API_DOMAIN> \
+  -e BASE_URL=https://43.202.187.240.nip.io \
   -e AUCTION_ID=A-K6-READ01 \
   -e RUN_ID=20260727-read-01 \
   -e PROFILE=baseline \
@@ -184,7 +203,7 @@ k6 run \
 
 ```bash
 k6 run \
-  -e BASE_URL=https://<AWS_API_DOMAIN> \
+  -e BASE_URL=https://43.202.187.240.nip.io \
   -e AUCTION_ID=A-K6-HOT01 \
   -e AUTH_MODE=credentials \
   -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
@@ -203,7 +222,7 @@ k6 run \
 
 ```bash
 k6 run \
-  -e BASE_URL=https://<AWS_API_DOMAIN> \
+  -e BASE_URL=https://43.202.187.240.nip.io \
   -e AUCTION_ID=A-K6-SPIKE1 \
   -e AUTH_MODE=credentials \
   -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
@@ -220,7 +239,7 @@ Preflight, Baseline, Hotspot, Spike가 모두 성공한 뒤 팀 승인 후 실�
 ```bash
 # Stress
 k6 run \
-  -e BASE_URL=https://<AWS_API_DOMAIN> \
+  -e BASE_URL=https://43.202.187.240.nip.io \
   -e AUCTION_ID=A-K6-STRS01 \
   -e AUTH_MODE=credentials \
   -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
@@ -230,7 +249,7 @@ k6 run \
 
 # Soak: 먼저 10분 검증 후 60분으로 확장
 k6 run \
-  -e BASE_URL=https://<AWS_API_DOMAIN> \
+  -e BASE_URL=https://43.202.187.240.nip.io \
   -e AUCTION_ID=A-K6-SOAK01 \
   -e AUTH_MODE=credentials \
   -e CREDENTIALS_FILE=/tmp/auction-credentials.json \
