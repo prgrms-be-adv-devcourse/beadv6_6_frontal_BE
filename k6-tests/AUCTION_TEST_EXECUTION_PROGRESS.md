@@ -94,6 +94,12 @@ k6 run \
 
 토큰은 채팅, 문서, Git 커밋 또는 명령행 인수에 직접 넣지 않는다. 개발자 PC의 임시 파일에 저장한다.
 
+현재 프론트엔드는 Access Token을 `localStorage.accessToken`에 저장한다. 로그인한 브라우저의 개발자 도구 Console에서 다음 명령으로 클립보드에만 복사한다.
+
+```javascript
+copy(localStorage.getItem("accessToken"))
+```
+
 ```bash
 cp k6-tests/data/auction-users.example.json /tmp/auction-users.json
 chmod 600 /tmp/auction-users.json

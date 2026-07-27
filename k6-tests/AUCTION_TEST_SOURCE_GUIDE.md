@@ -47,6 +47,50 @@ chmod 600 /tmp/auction-users.json
 
 각 항목의 `memberId`와 `token`을 실제 테스트 회원 값으로 바꾼다. Hotspot과 Stress는 최대 VU 수 이상의 서로 다른 입찰 회원을 준비한다.
 
+현재 프론트엔드는 로그인 후 Access Token을 브라우저 `localStorage`의 `accessToken` 키에 저장한다. 로그인된 프론트 화면에서 개발자 도구 Console을 열고 다음 명령으로 토큰을 클립보드에만 복사한다.
+
+```javascript
+copy(localStorage.getItem("accessToken"))
+```
+
+Mac zsh에서 다음 명령을 실행한 뒤 클립보드의 토큰을 붙여 넣고 Enter를 누른다. `read -s`를 사용하므로 토큰은 화면과 명령 이력에 표시되지 않는다. JWT의 회원 ID도 로컬에서 자동으로 추출한다.
+
+```bash
+read -s "TOKEN?Access Token 붙여넣기: "
+echo
+
+MEMBER_ID="$(TOKEN="$TOKEN" node -e '
+  const payload = JSON.parse(Buffer.from(process.env.TOKEN.split(".")[1], "base64url"));
+  const memberId = Number(payload.sub ?? payload.memberId);
+  if (!Number.isSafeInteger(memberId)) process.exit(1);
+  process.stdout.write(String(memberId));
+')"
+
+jq -n \
+  --argjson memberId "$MEMBER_ID" \
+  --arg token "$TOKEN" \
+  '[{memberId: $memberId, token: $token}]' \
+  > /tmp/auction-users.json
+
+chmod 600 /tmp/auction-users.json
+unset TOKEN MEMBER_ID
+```
+
+실제 토큰 값을 출력하지 않고 준비 여부만 확인한다.
+
+```bash
+jq -e '
+  type == "array" and length > 0 and
+  all(.[];
+    (.memberId | type) == "number" and
+    (.token | type) == "string" and
+    (.token | startswith("REPLACE_") | not)
+  )
+' /tmp/auction-users.json >/dev/null \
+  && echo "TOKEN READY" \
+  || echo "TOKEN NOT READY"
+```
+
 ### 4.1 전용 Auction 준비
 
 테스트용 판매자·상품이 존재하는지 먼저 확인한 후 현재 스키마용 SQL을 실행한다. `product_id`는 다른 Auction이 사용하지 않는 테스트 전용 상품 ID여야 한다.
