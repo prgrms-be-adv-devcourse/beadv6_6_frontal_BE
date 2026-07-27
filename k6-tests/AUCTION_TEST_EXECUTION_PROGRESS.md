@@ -35,6 +35,9 @@
 | 공개 Auction 목록 | 통과 | LIVE Auction 조회 HTTP 200 |
 | 신규 k6 소스 정적 검증 | 통과 | `10_`~`15_` 전체 `k6 inspect` 성공 |
 | PC -> AWS 읽기 Smoke | 통과 | 1 VU, 시스템 오류 0%, p95 92.87ms |
+| 토큰 파일 생성 | 부분 완료 | `/tmp/auction-users.json`, 권한 `600`; 현재 예시 토큰이므로 실제 토큰 입력 필요 |
+| 결과 디렉터리 생성 | 완료 | `k6-tests/results` |
+| PC -> NAS PostgreSQL 포트 | 통과 | `1.234.196.160:15432 - accepting connections` |
 | 전용 테스트 Auction 준비 | 대기 | `A-K6-` ID와 전용 product/seller 필요 |
 | Preflight 쓰기 | 대기 | 전용 Auction과 입찰자 JWT 파일 필요 |
 | Read Baseline | 대기 | Smoke 통과 후 5~10 VU 실행 |
@@ -133,20 +136,38 @@ chmod 600 /tmp/auction-users.json
 | `min_increment` | 예: `1000` |
 | `ends_in_seconds` | 시나리오 실행 시간보다 길게 설정 |
 
-준비 SQL:
+준비 SQL은 Mac의 zsh에서 실행한다. `<NAS_DB_HOST>` 같은 설명용 꺾쇠 자리표시자를 그대로 입력하면 zsh가 파일 입력 연산자로 해석하므로 사용하지 않는다.
+
+PostgreSQL 사용자명과 비밀번호를 모르면 AWS Master에서 다음 명령으로 본인만 확인한다. 출력값은 채팅이나 문서에 복사하지 않는다.
 
 ```bash
-psql -h <NAS_DB_HOST> -p 15432 -U <DB_USER> -d biddy_auction \
+sudo k3s kubectl get secret biddy-secret -n biddy \
+  -o jsonpath='{.data.POSTGRES_USER}' | base64 --decode
+echo
+
+sudo k3s kubectl get secret biddy-secret -n biddy \
+  -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 --decode
+echo
+```
+
+사용자명은 다음 Mac 명령의 프롬프트에, 비밀번호는 `psql -W`가 표시하는 비밀번호 프롬프트에 입력한다.
+
+```bash
+read "DB_USER?PostgreSQL 사용자명: "
+
+psql -h 1.234.196.160 -p 15432 -U "$DB_USER" -W -d biddy_auction \
   -v auction_id=A-K6-PREF01 \
-  -v product_id=<TEST_PRODUCT_ID> \
-  -v seller_id=<TEST_SELLER_ID> \
+  -v product_id=900001 \
+  -v seller_id=900001 \
   -v start_price=100000 \
   -v min_increment=1000 \
   -v ends_in_seconds=3600 \
   -f k6-tests/scripts/setup_auction_aws_test_data.sql
 ```
 
-DB가 PC에서 직접 열리지 않으면 AWS K3s의 임시 PostgreSQL Pod에서 같은 SQL을 실행한다. 비밀번호는 명령 이력이나 문서에 기록하지 않는다.
+현재 PC에서 NAS의 `1.234.196.160:15432` 포트가 연결되는 것을 확인했다. `-W` 프롬프트에서 비밀번호를 입력하며 비밀번호는 명령, 문서 또는 채팅에 기록하지 않는다.
+
+`900001`은 Auction 도메인만 격리해 테스트할 때 사용할 수 있는 예시 참조값이다. 입찰 토큰의 `memberId`가 `900001`이면 self-bid 방지를 위해 다른 seller ID를 사용한다. Product와 결합된 화면까지 검증하려면 실제 테스트 상품과 판매자 ID로 교체한다.
 
 ## 6. 권장 실행 순서
 
@@ -301,10 +322,11 @@ Stress에서 확인한 안전 VU의 50~60%로 시작한다.
 
 ## 9. 현재 다음 행동
 
-1. 개발자 PC의 `/tmp/auction-users.json`에 판매자가 아닌 실제 테스트 입찰자 토큰 1개 이상을 준비한다.
-2. 테스트 전용 seller와 product ID를 정한다.
-3. `A-K6-PREF01` 경매를 준비 SQL로 생성한다.
-4. Preflight를 실행한다.
-5. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
+1. `/tmp/auction-users.json`의 `REPLACE_...` 값을 판매자가 아닌 실제 입찰자 토큰으로 교체한다.
+2. AWS의 `biddy-secret`에서 PostgreSQL 사용자명과 비밀번호를 본인 터미널에서 확인한다.
+3. 위의 실제 NAS 주소 명령으로 `A-K6-PREF01` 경매를 생성한다.
+4. 생성 결과를 공유하되 DB 비밀번호와 토큰은 공유하지 않는다.
+5. Preflight를 실행한다.
+6. Preflight와 DB 정합성이 통과하면 Read Baseline으로 진행한다.
 
 토큰 값 자체는 공유하지 않고 준비된 로컬 파일 경로만 사용한다.

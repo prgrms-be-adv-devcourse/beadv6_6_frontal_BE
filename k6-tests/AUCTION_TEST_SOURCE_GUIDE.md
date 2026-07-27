@@ -51,8 +51,12 @@ chmod 600 /tmp/auction-users.json
 
 테스트용 판매자·상품이 존재하는지 먼저 확인한 후 현재 스키마용 SQL을 실행한다. `product_id`는 다른 Auction이 사용하지 않는 테스트 전용 상품 ID여야 한다.
 
+Mac의 zsh에서 다음 명령을 실행하면 사용자명과 비밀번호를 대화형으로 입력할 수 있다. 꺾쇠괄호(`<...>`)를 명령에 그대로 입력하지 않는다.
+
 ```bash
-psql -h <NAS_DB_HOST> -p 15432 -U <DB_USER> -d biddy_auction \
+read "DB_USER?PostgreSQL 사용자명: "
+
+psql -h 1.234.196.160 -p 15432 -U "$DB_USER" -W -d biddy_auction \
   -v auction_id=A-K6-HOT01 \
   -v product_id=900001 \
   -v seller_id=900001 \
@@ -61,6 +65,8 @@ psql -h <NAS_DB_HOST> -p 15432 -U <DB_USER> -d biddy_auction \
   -v ends_in_seconds=3600 \
   -f k6-tests/scripts/setup_auction_aws_test_data.sql
 ```
+
+`900001`은 Auction 도메인 격리를 위한 예시 참조값이다. `product_id`는 Auction 테이블에서 사용 중이지 않아야 하고 `seller_id`는 입찰 토큰의 회원 ID와 달라야 한다. 실제 Product 화면 조합까지 확인하려면 별도로 생성한 테스트 상품·판매자 ID를 사용한다.
 
 Closing Spike는 `ends_in_seconds`를 실행 준비 시간을 고려해 약 60초로 지정한다. 정합성 결과를 보존한 후 `cleanup_auction_aws_test_data.sql`로 해당 `A-K6-` 경매만 정리한다.
 
