@@ -16,6 +16,7 @@ public enum ErrorCode {
 
     // 400 Bad Request
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "E001", "입력값이 유효하지 않습니다"),
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "E004", "지원하지 않는 HTTP 메서드입니다"),
 
     // 401 Unauthorized
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "E002", "인증이 필요합니다"),
@@ -25,10 +26,6 @@ public enum ErrorCode {
 
     // 404 Not Found
     AUCTION_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "경매를 찾을 수 없습니다"),
-
-    // 400 Bad Request
-    BID_AMOUNT_TOO_LOW(HttpStatus.BAD_REQUEST, "B002", "최소 입찰 단위 미달입니다"),
-    INVALID_BID_AMOUNT(HttpStatus.BAD_REQUEST, "B005", "입찰 금액은 0보다 커야 합니다"),
 
     // 403 Forbidden
     SELF_BID_NOT_ALLOWED(HttpStatus.FORBIDDEN, "B003", "본인 경매에는 입찰할 수 없습니다"),

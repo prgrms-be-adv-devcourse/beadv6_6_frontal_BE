@@ -1,49 +1,30 @@
 package com.biddy.auction.bid.presentation;
 
 import com.biddy.auction.bid.application.dto.BidHistoryQuery;
-import com.biddy.auction.bid.application.dto.PlaceBidCommand;
-import com.biddy.auction.bid.application.dto.PlaceBidResult;
-import com.biddy.auction.bid.application.usecase.BidUseCase;
+import com.biddy.auction.bid.application.usecase.BidQueryUseCase;
 import com.biddy.auction.bid.presentation.dto.BidHistoryResponse;
-import com.biddy.auction.bid.presentation.dto.PlaceBidRequest;
-import com.biddy.auction.bid.presentation.dto.PlaceBidResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 입찰 REST API Controller.
+ * 기존 v1 입찰 내역 조회 API Controller.
  */
-@Tag(name = "입찰", description = "입찰 실행 및 입찰 내역 조회 API")
+@Tag(name = "입찰 내역", description = "기존 v1 입찰 내역 조회 API")
 @RestController
 @RequestMapping("/api/v1/auctions/{auctionId}/bids")
 @RequiredArgsConstructor
 @Validated
-public class BidController {
+public class BidHistoryController {
 
-    private final BidUseCase bidUseCase;
-
-    @Operation(summary = "입찰 실행", description = "낙관적 락으로 입찰을 커밋한다. 201 응답은 입찰 저장과 경매 현재가 갱신이 모두 완료된 경우에만 반환한다.")
-    @PostMapping
-    public ResponseEntity<PlaceBidResponse> placeBid(
-            @Parameter(description = "경매 ID") @PathVariable String auctionId,
-            @RequestHeader("X-Member-Id") @Positive Long bidderId,
-            @RequestBody @Valid PlaceBidRequest request
-    ) {
-        PlaceBidCommand command = new PlaceBidCommand(auctionId, bidderId, request.amount());
-        PlaceBidResult result = bidUseCase.placeBid(command);
-        return ResponseEntity.status(HttpStatus.CREATED).body(PlaceBidResponse.from(result));
-    }
+    private final BidQueryUseCase bidQueryUseCase;
 
     @Operation(summary = "입찰 내역 조회", description = "특정 경매의 입찰 내역을 최신순으로 페이징 조회한다.")
     @GetMapping
@@ -53,7 +34,7 @@ public class BidController {
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
         BidHistoryQuery query = new BidHistoryQuery(auctionId, page, size);
-        Page<BidHistoryResponse> response = bidUseCase.getBidHistory(query)
+        Page<BidHistoryResponse> response = bidQueryUseCase.getBidHistory(query)
                 .map(BidHistoryResponse::from);
         return ResponseEntity.ok(response);
     }

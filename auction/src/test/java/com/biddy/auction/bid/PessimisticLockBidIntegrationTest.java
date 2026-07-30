@@ -3,8 +3,8 @@ package com.biddy.auction.bid;
 import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
-import com.biddy.auction.bid.application.dto.PlaceBidV2Command;
-import com.biddy.auction.bid.application.usecase.BidV2UseCase;
+import com.biddy.auction.bid.application.dto.PlaceBidCommand;
+import com.biddy.auction.bid.application.usecase.BidUseCase;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
@@ -39,10 +39,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.cloud.config.enabled=false",
         "eureka.client.enabled=false"
 })
-class PessimisticLockBidV2IntegrationTest {
+class PessimisticLockBidIntegrationTest {
 
     @Autowired
-    private BidV2UseCase bidV2UseCase;
+    private BidUseCase bidUseCase;
 
     @Autowired
     private AuctionRepository auctionRepository;
@@ -54,7 +54,7 @@ class PessimisticLockBidV2IntegrationTest {
     private OutboxEventRepository outboxEventRepository;
 
     @Test
-    @DisplayName("같은 sequence의 동시 v2 입찰은 행 잠금 순서상 한 건만 커밋된다")
+    @DisplayName("같은 sequence의 동시 입찰은 행 잠금 순서상 한 건만 커밋된다")
     void concurrentBidsWithSameObservedSequence_commitExactlyOne() throws Exception {
         String auctionId = "PESS-" + UUID.randomUUID().toString().substring(0, 12);
         auctionRepository.save(Auction.builder()
@@ -82,7 +82,7 @@ class PessimisticLockBidV2IntegrationTest {
                 futures.add(executor.submit(() -> {
                     startLatch.await();
                     try {
-                        bidV2UseCase.placeBid(new PlaceBidV2Command(
+                        bidUseCase.placeBid(new PlaceBidCommand(
                                 auctionId,
                                 bidderId,
                                 UUID.randomUUID(),

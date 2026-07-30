@@ -1,7 +1,7 @@
 package com.biddy.auction.bid.presentation;
 
 import com.biddy.auction.bid.application.dto.BidHistoryResult;
-import com.biddy.auction.bid.application.usecase.BidUseCase;
+import com.biddy.auction.bid.application.usecase.BidQueryUseCase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,15 +23,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(BidController.class)
+@WebMvcTest(BidHistoryController.class)
 @AutoConfigureMockMvc(addFilters = false)
-class BidControllerTest {
+class BidHistoryControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private BidUseCase bidUseCase;
+    private BidQueryUseCase bidQueryUseCase;
 
     @Test
     @DisplayName("GET /api/v1/auctions/{auctionId}/bids - 입찰 내역을 정상 조회한다")
@@ -43,7 +43,7 @@ class BidControllerTest {
                         LocalDateTime.of(2026, 6, 12, 13, 55, 0)
                 )
         );
-        given(bidUseCase.getBidHistory(any()))
+        given(bidQueryUseCase.getBidHistory(any()))
                 .willReturn(new PageImpl<>(results, PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get("/api/v1/auctions/A-FNF97/bids"))
@@ -59,7 +59,7 @@ class BidControllerTest {
     @Test
     @DisplayName("GET /api/v1/auctions/{auctionId}/bids?page=1&size=10 - 페이지네이션이 적용된다")
     void getBidHistory_withPagination() throws Exception {
-        given(bidUseCase.getBidHistory(any()))
+        given(bidQueryUseCase.getBidHistory(any()))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(1, 10), 0));
 
         mockMvc.perform(get("/api/v1/auctions/A-001/bids")
@@ -72,7 +72,7 @@ class BidControllerTest {
     @Test
     @DisplayName("GET /api/v1/auctions/{auctionId}/bids - 입찰 내역이 없으면 빈 배열을 반환한다")
     void getBidHistory_empty_returnsEmptyContent() throws Exception {
-        given(bidUseCase.getBidHistory(any()))
+        given(bidQueryUseCase.getBidHistory(any()))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         mockMvc.perform(get("/api/v1/auctions/A-EMPTY/bids"))
@@ -82,35 +82,13 @@ class BidControllerTest {
     }
 
     @Test
-    @DisplayName("POST 입찰에서 인증 헤더가 없으면 401 E002")
-    void placeBid_missingMemberHeader_returnsUnauthorized() throws Exception {
+    @DisplayName("기존 v1 입찰 POST는 더 이상 노출하지 않는다")
+    void placeBid_legacyV1_returnsMethodNotAllowed() throws Exception {
         mockMvc.perform(post("/api/v1/auctions/A-001/bids")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"amount\":520000}"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("E002"));
-    }
-
-    @Test
-    @DisplayName("POST 입찰 금액이 null이면 400 B005")
-    void placeBid_nullAmount_returnsInvalidBidAmount() throws Exception {
-        mockMvc.perform(post("/api/v1/auctions/A-001/bids")
-                        .header("X-Member-Id", "42")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"amount\":null}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("B005"));
-    }
-
-    @Test
-    @DisplayName("POST 입찰 JSON이 잘못되면 400 E001")
-    void placeBid_malformedJson_returnsInvalidInput() throws Exception {
-        mockMvc.perform(post("/api/v1/auctions/A-001/bids")
-                        .header("X-Member-Id", "42")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"amount\":"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("E001"));
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"amount\":520000}"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.code").value("E004"));
     }
 
     @Test

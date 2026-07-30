@@ -19,7 +19,6 @@ public class BidFeatureProperties {
 
     private ExecutionMode executionMode = ExecutionMode.OPTIMISTIC;
     private WebSocketSource websocketSource = WebSocketSource.DIRECT;
-    private Toggle apiV2 = new Toggle();
     private Toggle redisProjection = new Toggle();
 
     public enum ExecutionMode {

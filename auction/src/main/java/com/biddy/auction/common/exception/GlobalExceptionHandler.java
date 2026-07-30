@@ -16,6 +16,7 @@ import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -73,15 +74,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(errorCode.getStatus()).body(ErrorResponse.of(errorCode));
     }
 
+    /** 제거된 API나 지원하지 않는 HTTP 메서드를 405로 반환한다. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    protected ResponseEntity<ErrorResponse> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException e
+    ) {
+        log.warn("HTTP method not supported: method={}", e.getMethod());
+        return ResponseEntity.status(ErrorCode.METHOD_NOT_ALLOWED.getStatus())
+                .body(ErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED));
+    }
+
     /** 요청 본문의 Bean Validation 실패를 처리한다. */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
-        boolean invalidBidAmount = e.getBindingResult().getFieldErrors().stream()
-                .anyMatch(fieldError -> "amount".equals(fieldError.getField()));
-
-        ErrorCode errorCode = invalidBidAmount
-                ? ErrorCode.INVALID_BID_AMOUNT
-                : ErrorCode.INVALID_INPUT;
+        ErrorCode errorCode = ErrorCode.INVALID_INPUT;
         String message = e.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(fieldError -> fieldError.getDefaultMessage())

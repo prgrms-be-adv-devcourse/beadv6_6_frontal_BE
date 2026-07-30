@@ -72,72 +72,63 @@ GET http://localhost:8084/api/v1/auctions/A-NOTEXIST
 Accept: application/json
 
 
-### ========== 3. 입찰 (POST /api/v1/auctions/{auctionId}/bids) ==========
-# 경매에 입찰한다.
-# 요청: { bidderId, amount }
-# 검증: 경매 존재 → LIVE 상태 → 본인 경매 아님 → 금액 >= currentBid + minIncrement
-# 비관적 락(SELECT FOR UPDATE)으로 동시 입찰 직렬화
+### ========== 3. 입찰 (POST /api/v2/auctions/{auctionId}/bids) ==========
+# 서버가 currentBid + minIncrement로 승인 금액을 계산한다.
+# X-Member-Id는 Gateway가 JWT 검증 후 전달한다.
 
 ### 3-1. 입찰 실행 (정상)
-# amount가 currentBid + minIncrement 이상이면 성공
-# 응답: bidId, amount, currentBid(갱신됨), bidCount(+1)
-POST http://localhost:8084/api/v1/auctions/A-AJ1HI/bids
+POST http://localhost:8084/api/v2/auctions/A-AJ1HI/bids
+X-Member-Id: 42
 Content-Type: application/json
 
 {
-  "bidderId": 42,
-  "amount": 1600000
+  "requestId": "4d47e190-0402-4048-bc2c-89dd54343cdc",
+  "observedSequence": 0,
+  "maxAcceptableAmount": 1600000
 }
 
-### 3-2. 최소 입찰 단위 미달 (400 BID_AMOUNT_TOO_LOW)
-# amount < currentBid + minIncrement → 입찰 거부
-# minIncrement=20000일 때 currentBid+20000 이상이어야 함
-POST http://localhost:8084/api/v1/auctions/A-AJ1HI/bids
+### 3-2. 동일 requestId 멱등 재요청
+POST http://localhost:8084/api/v2/auctions/A-AJ1HI/bids
+X-Member-Id: 42
 Content-Type: application/json
 
 {
-  "bidderId": 43,
-  "amount": 100
+  "requestId": "4d47e190-0402-4048-bc2c-89dd54343cdc",
+  "observedSequence": 0,
+  "maxAcceptableAmount": 1600000
 }
 
-### 3-3. 본인 경매 입찰 (403 SELF_BID_NOT_ALLOWED)
-# bidderId가 경매의 sellerId와 동일하면 입찰 불가
-# Seed Data에서 A-AJ1HI의 sellerId=10
-POST http://localhost:8084/api/v1/auctions/A-AJ1HI/bids
+### 3-3. 오래된 sequence (409 BID_STALE_STATE)
+POST http://localhost:8084/api/v2/auctions/A-AJ1HI/bids
+X-Member-Id: 43
 Content-Type: application/json
 
 {
-  "bidderId": 10,
-  "amount": 2000000
+  "requestId": "63c43af3-ae20-49bb-9bd9-b330bbfd06b8",
+  "observedSequence": 0,
+  "maxAcceptableAmount": 2000000
 }
 
-### 3-4. 종료된 경매 입찰 (409 AUCTION_ALREADY_ENDED)
-# status=ENDED인 경매에는 입찰 불가
-POST http://localhost:8084/api/v1/auctions/A-ENDED1/bids
+### 3-4. 본인 경매 입찰 (403 SELF_BID_NOT_ALLOWED)
+POST http://localhost:8084/api/v2/auctions/A-AJ1HI/bids
+X-Member-Id: 10
 Content-Type: application/json
 
 {
-  "bidderId": 42,
-  "amount": 500000
+  "requestId": "7bfbe7d2-daa0-4a45-a508-d083e8448bd9",
+  "observedSequence": 1,
+  "maxAcceptableAmount": 2000000
 }
 
-### 3-5. 존재하지 않는 경매에 입찰 (404 AUCTION_NOT_FOUND)
-POST http://localhost:8084/api/v1/auctions/A-NOTEXIST/bids
+### 3-5. 종료된 경매 입찰 (409 AUCTION_ALREADY_ENDED)
+POST http://localhost:8084/api/v2/auctions/A-ENDED1/bids
+X-Member-Id: 42
 Content-Type: application/json
 
 {
-  "bidderId": 42,
-  "amount": 500000
-}
-
-### 3-6. 연속 입찰 테스트 (다른 입찰자가 더 높은 금액 입찰)
-# 3-1 실행 후 다른 bidderId로 더 높은 금액 입찰
-POST http://localhost:8084/api/v1/auctions/A-AJ1HI/bids
-Content-Type: application/json
-
-{
-  "bidderId": 55,
-  "amount": 1650000
+  "requestId": "80c7c9b2-47ce-4266-bd2c-b319c2b135a9",
+  "observedSequence": 0,
+  "maxAcceptableAmount": 500000
 }
 
 

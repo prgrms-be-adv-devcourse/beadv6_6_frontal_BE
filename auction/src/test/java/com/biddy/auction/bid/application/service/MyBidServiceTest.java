@@ -3,7 +3,6 @@ package com.biddy.auction.bid.application.service;
 import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
-import com.biddy.auction.auction.infra.websocket.AuctionWebSocketPublisher;
 import com.biddy.auction.bid.application.dto.MyBidResult;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
@@ -26,16 +25,13 @@ import static org.mockito.BDDMockito.given;
 class MyBidServiceTest {
 
     @InjectMocks
-    private BidService bidService;
+    private BidQueryService bidQueryService;
 
     @Mock
     private BidRepository bidRepository;
 
     @Mock
     private AuctionRepository auctionRepository;
-
-    @Mock
-    private AuctionWebSocketPublisher webSocketPublisher;
 
     private Auction createAuction(String id, AuctionStatus status, Long currentBid, int bidCount) {
         return Auction.builder()
@@ -59,7 +55,7 @@ class MyBidServiceTest {
         given(bidRepository.findTopByAuctionIdAndBidderId("A-001", 42L)).willReturn(Optional.of(myBid));
         given(bidRepository.findTopByAuctionId("A-001")).willReturn(Optional.of(topBid));
 
-        Page<MyBidResult> result = bidService.getMyBids(42L, null, 0, 20);
+        Page<MyBidResult> result = bidQueryService.getMyBids(42L, null, 0, 20);
 
         assertThat(result.getContent()).hasSize(1);
         MyBidResult item = result.getContent().get(0);
@@ -80,7 +76,7 @@ class MyBidServiceTest {
         given(bidRepository.findTopByAuctionIdAndBidderId("A-001", 42L)).willReturn(Optional.of(myBid));
         given(bidRepository.findTopByAuctionId("A-001")).willReturn(Optional.of(myBid));
 
-        Page<MyBidResult> result = bidService.getMyBids(42L, null, 0, 20);
+        Page<MyBidResult> result = bidQueryService.getMyBids(42L, null, 0, 20);
 
         assertThat(result.getContent().get(0).isTopBidder()).isTrue();
     }
@@ -99,7 +95,7 @@ class MyBidServiceTest {
         given(bidRepository.findTopByAuctionId("A-001"))
                 .willReturn(Optional.of(Bid.builder().bidId(1L).auctionId("A-001").bidderId(42L).amount(500000L).build()));
 
-        Page<MyBidResult> result = bidService.getMyBids(42L, AuctionStatus.LIVE, 0, 20);
+        Page<MyBidResult> result = bidQueryService.getMyBids(42L, AuctionStatus.LIVE, 0, 20);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).auctionId()).isEqualTo("A-001");
@@ -110,7 +106,7 @@ class MyBidServiceTest {
     void getMyBids_empty() {
         given(bidRepository.findDistinctAuctionIdsByBidderId(42L)).willReturn(List.of());
 
-        Page<MyBidResult> result = bidService.getMyBids(42L, null, 0, 20);
+        Page<MyBidResult> result = bidQueryService.getMyBids(42L, null, 0, 20);
 
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getTotalElements()).isZero();

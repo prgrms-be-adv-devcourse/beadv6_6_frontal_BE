@@ -1,7 +1,7 @@
 package com.biddy.auction.bid.presentation;
 
 import com.biddy.auction.auction.domain.model.AuctionStatus;
-import com.biddy.auction.bid.application.usecase.BidUseCase;
+import com.biddy.auction.bid.application.usecase.BidQueryUseCase;
 import com.biddy.auction.bid.presentation.dto.MyBidResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 public class MyBidController {
 
-    private final BidUseCase bidUseCase;
+    private final BidQueryUseCase bidQueryUseCase;
 
     @Operation(summary = "내 입찰 참여 목록 조회")
     @GetMapping
@@ -32,7 +32,7 @@ public class MyBidController {
             @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") @Min(0) int page,
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
-        Page<MyBidResponse> response = bidUseCase.getMyBids(bidderId, status, page, size)
+        Page<MyBidResponse> response = bidQueryUseCase.getMyBids(bidderId, status, page, size)
                 .map(MyBidResponse::from);
         return ResponseEntity.ok(response);
     }

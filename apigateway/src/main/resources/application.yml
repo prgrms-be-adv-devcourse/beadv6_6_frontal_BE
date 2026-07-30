@@ -57,7 +57,7 @@ spring:
         - id: auction-service
           uri: lb://AUCTION-SERVICE
           predicates:
-            - Path=/api/auctions/**, /api/v1/auctions/**, /api/v1/members/me/watches/**, /api/v1/members/me/bids/**
+            - Path=/api/auctions/**, /api/v1/auctions/**, /api/v2/auctions/**, /api/v1/members/me/watches/**, /api/v1/members/me/bids/**
 
         - id: auction-service-websocket
           uri: lb:ws://AUCTION-SERVICE

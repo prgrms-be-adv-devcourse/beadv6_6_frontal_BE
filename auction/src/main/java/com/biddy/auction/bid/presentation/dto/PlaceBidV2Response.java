@@ -1,6 +1,6 @@
 package com.biddy.auction.bid.presentation.dto;
 
-import com.biddy.auction.bid.application.dto.PlaceBidV2Result;
+import com.biddy.auction.bid.application.dto.PlaceBidResult;
 
 import java.util.UUID;
 
@@ -15,7 +15,7 @@ public record PlaceBidV2Response(
         Integer bidCount,
         boolean idempotentReplay
 ) {
-    public static PlaceBidV2Response from(PlaceBidV2Result result) {
+    public static PlaceBidV2Response from(PlaceBidResult result) {
         return new PlaceBidV2Response(
                 result.bidId(),
                 result.requestId(),

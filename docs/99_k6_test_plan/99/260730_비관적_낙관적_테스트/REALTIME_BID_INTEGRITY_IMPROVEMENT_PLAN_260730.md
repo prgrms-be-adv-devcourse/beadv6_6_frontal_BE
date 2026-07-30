@@ -384,7 +384,7 @@ Auction.bidSequence
 - 기존 낙관적 락 k6 결과를 회귀 기준선으로 고정한다.
 - `bid.execution-mode=optimistic|pessimistic`를 정의하고 기본값은 `optimistic`으로 둔다.
 - `bid.websocket-source=direct|redis`를 정의하고 기본값은 `direct`로 둔다.
-- `bid.api-v2.enabled=false`, `bid.redis-projection.enabled=false`를 기본값으로 둔다.
+- API 전환 전에는 `bid.api-v2.enabled=false`, `bid.redis-projection.enabled=false`를 기본값으로 둔다.
 
 검증:
 
@@ -460,7 +460,7 @@ Auction.bidSequence = MAX(Bid.sequence)
 
 롤백:
 
-- `bid.api-v2.enabled=false`로 v2 진입을 차단하고 v1 계약으로 복구한다.
+- 전환 기간에는 `bid.api-v2.enabled=false`로 v2 진입을 차단하고 v1 계약으로 복구한다.
 
 ### Phase 4. 경매 행 직렬화
 
@@ -659,7 +659,7 @@ bid_client_snapshot_recovery_total
 
 | 장애 지점 | 우선 대응 | DB 처리 | 복구 |
 |---|---|---|---|
-| v2 API 오류 | `bid.api-v2.enabled=false` | 기존 v1 유지 | v2 코드 수정 후 재활성 |
+| 정식 입찰 API 오류 | 직전 애플리케이션 커밋으로 롤백 | 하위 호환 DB 스키마 유지 | 원인 수정 후 재배포 |
 | 비관적 lock wait 증가 | `bid.execution-mode=optimistic` | 기존 `@Version` 복귀 | lock timeout·풀 분석 |
 | Outbox relay 장애 | relay 중단 | 입찰 커밋 유지 | PENDING 재발행 |
 | Redis Projection 오류 | projection 비활성 | DB 입찰 커밋 유지 | DB/Kafka로 재구축 |
@@ -719,3 +719,18 @@ BID_WEBSOCKET_SOURCE=direct
 백엔드 자동 테스트는 Redis Lua 호출 계약, Kafka 역직렬화·위임, Redis subscriber, direct 중복 차단,
 WebSocket sequence 계약과 경매 상세 REST sequence를 검증한다. 실제 여러 Pod·브라우저·모바일을 이용한 배포 환경 E2E와
 Redis 장애 주입은 운영 전환 전에 별도로 수행한다.
+
+## 18. 정식 BidService 승격과 기존 실행 경로 제거
+
+서버 계산·sequence·멱등성 구현을 정식 애플리케이션 서비스로 승격했다.
+
+- `BidV2Service` → `BidService`
+- `BidV2TransactionService` → `BidTransactionService`
+- `BidV2UseCase` → `BidUseCase`
+- 애플리케이션 command/result의 `V2` 접미사를 제거했다.
+- 기존 금액 직접 지정 v1 입찰 POST, DTO, 트랜잭션 서비스와 관련 테스트를 삭제했다.
+- 기존 GET 입찰 내역과 내 입찰 조회는 `BidQueryService`/`BidQueryUseCase`로 분리해 유지한다.
+- HTTP 계약 버전인 `BidV2Controller`, `PlaceBidV2Request/Response`, `/api/v2/...` 경로는 유지한다.
+- API 기능 플래그는 제거했고 Gateway가 `/api/v2/auctions/**`를 정식 라우팅한다.
+
+이 전환 이후 입찰 실행 롤백은 구형 v1 경로 활성화가 아니라 직전 애플리케이션 커밋 배포로 수행한다.

@@ -1,8 +1,8 @@
 package com.biddy.auction.bid.presentation;
 
-import com.biddy.auction.bid.application.dto.PlaceBidV2Command;
-import com.biddy.auction.bid.application.dto.PlaceBidV2Result;
-import com.biddy.auction.bid.application.usecase.BidV2UseCase;
+import com.biddy.auction.bid.application.dto.PlaceBidCommand;
+import com.biddy.auction.bid.application.dto.PlaceBidResult;
+import com.biddy.auction.bid.application.usecase.BidUseCase;
 import com.biddy.auction.common.exception.BidConflictException;
 import com.biddy.auction.common.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,7 +27,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(BidV2Controller.class)
 @AutoConfigureMockMvc(addFilters = false)
-@TestPropertySource(properties = "bid.api-v2.enabled=true")
 class BidV2ControllerTest {
 
     private static final UUID REQUEST_ID = UUID.fromString("4d47e190-0402-4048-bc2c-89dd54343cdc");
@@ -37,12 +35,12 @@ class BidV2ControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private BidV2UseCase bidV2UseCase;
+    private BidUseCase bidUseCase;
 
     @Test
     @DisplayName("신규 v2 입찰은 서버 계산 결과와 함께 201을 반환한다")
     void placeBid_newRequest_returnsCreated() throws Exception {
-        given(bidV2UseCase.placeBid(any())).willReturn(result(false));
+        given(bidUseCase.placeBid(any())).willReturn(result(false));
 
         mockMvc.perform(post("/api/v2/auctions/A-001/bids")
                         .header("X-Member-Id", "42")
@@ -55,16 +53,16 @@ class BidV2ControllerTest {
                 .andExpect(jsonPath("$.nextMinimumBid").value(520000))
                 .andExpect(jsonPath("$.idempotentReplay").value(false));
 
-        ArgumentCaptor<PlaceBidV2Command> captor = ArgumentCaptor.forClass(PlaceBidV2Command.class);
-        verify(bidV2UseCase).placeBid(captor.capture());
+        ArgumentCaptor<PlaceBidCommand> captor = ArgumentCaptor.forClass(PlaceBidCommand.class);
+        verify(bidUseCase).placeBid(captor.capture());
         assertThat(captor.getValue()).isEqualTo(
-                new PlaceBidV2Command("A-001", 42L, REQUEST_ID, 5L, 550000L));
+                new PlaceBidCommand("A-001", 42L, REQUEST_ID, 5L, 550000L));
     }
 
     @Test
     @DisplayName("동일 requestId 멱등 재응답은 200을 반환한다")
     void placeBid_idempotentReplay_returnsOk() throws Exception {
-        given(bidV2UseCase.placeBid(any())).willReturn(result(true));
+        given(bidUseCase.placeBid(any())).willReturn(result(true));
 
         mockMvc.perform(post("/api/v2/auctions/A-001/bids")
                         .header("X-Member-Id", "42")
@@ -78,7 +76,7 @@ class BidV2ControllerTest {
     @Test
     @DisplayName("stale sequence 충돌은 최신 snapshot과 함께 409를 반환한다")
     void placeBid_staleSequence_returnsConflictSnapshot() throws Exception {
-        given(bidV2UseCase.placeBid(any())).willThrow(new BidConflictException(
+        given(bidUseCase.placeBid(any())).willThrow(new BidConflictException(
                 ErrorCode.BID_STALE_STATE,
                 7L,
                 530000L,
@@ -118,8 +116,8 @@ class BidV2ControllerTest {
                 """;
     }
 
-    private PlaceBidV2Result result(boolean replay) {
-        return new PlaceBidV2Result(
+    private PlaceBidResult result(boolean replay) {
+        return new PlaceBidResult(
                 101L,
                 REQUEST_ID,
                 6L,

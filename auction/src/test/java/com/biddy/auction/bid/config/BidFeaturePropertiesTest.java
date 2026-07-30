@@ -21,7 +21,6 @@ class BidFeaturePropertiesTest {
                     .isEqualTo(BidFeatureProperties.ExecutionMode.OPTIMISTIC);
             assertThat(properties.getWebsocketSource())
                     .isEqualTo(BidFeatureProperties.WebSocketSource.DIRECT);
-            assertThat(properties.getApiV2().isEnabled()).isFalse();
             assertThat(properties.getRedisProjection().isEnabled()).isFalse();
         });
     }
@@ -32,7 +31,6 @@ class BidFeaturePropertiesTest {
                 .withPropertyValues(
                         "bid.execution-mode=pessimistic",
                         "bid.websocket-source=redis",
-                        "bid.api-v2.enabled=true",
                         "bid.redis-projection.enabled=true"
                 )
                 .run(context -> {
@@ -42,7 +40,6 @@ class BidFeaturePropertiesTest {
                             .isEqualTo(BidFeatureProperties.ExecutionMode.PESSIMISTIC);
                     assertThat(properties.getWebsocketSource())
                             .isEqualTo(BidFeatureProperties.WebSocketSource.REDIS);
-                    assertThat(properties.getApiV2().isEnabled()).isTrue();
                     assertThat(properties.getRedisProjection().isEnabled()).isTrue();
                 });
     }

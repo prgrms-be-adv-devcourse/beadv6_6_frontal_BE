@@ -68,8 +68,6 @@ outbox:
 bid:
   execution-mode: ${BID_EXECUTION_MODE:optimistic}
   websocket-source: ${BID_WEBSOCKET_SOURCE:direct}
-  api-v2:
-    enabled: ${BID_API_V2_ENABLED:false}
   redis-projection:
     enabled: ${BID_REDIS_PROJECTION_ENABLED:false}
     consumer-group: ${BID_REDIS_PROJECTION_CONSUMER_GROUP:auction-bid-projection}

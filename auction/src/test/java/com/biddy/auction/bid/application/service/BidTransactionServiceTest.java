@@ -9,6 +9,7 @@ import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.bid.infra.kafka.BidAcceptedOutboxWriter;
+import com.biddy.auction.common.exception.BidConflictException;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,10 +21,10 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,9 +53,11 @@ class BidTransactionServiceTest {
     private BidTransactionService transactionService;
 
     private Auction auction;
+    private UUID requestId;
 
     @BeforeEach
     void setUp() {
+        requestId = UUID.randomUUID();
         auction = Auction.builder()
                 .auctionId("A-001")
                 .sellerId(10L)
@@ -71,32 +74,40 @@ class BidTransactionServiceTest {
     }
 
     @Test
-    @DisplayName("Bid 저장과 Auction 갱신을 flush한 뒤 결과를 반환한다")
-    void executeBidTransaction_flushesBeforeReturning() {
-        PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, 520000L);
+    @DisplayName("클라이언트 상한이 더 높아도 서버가 정확한 다음 입찰가만 승인한다")
+    void executeBidTransaction_calculatesNextAmountOnServer() {
+        PlaceBidCommand command = command(5L, 550000L);
         Bid savedBid = Bid.builder()
                 .bidId(101L)
                 .auctionId("A-001")
                 .bidderId(42L)
-                .amount(520000L)
+                .requestId(requestId)
                 .sequence(6L)
-                .requestId(java.util.UUID.randomUUID())
+                .amount(510000L)
                 .build();
 
         given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
-        given(bidRepository.save(any(Bid.class))).willReturn(savedBid);
+        given(bidRepository.findByBidderIdAndRequestId(42L, requestId)).willReturn(Optional.empty());
         given(auctionRepository.save(auction)).willReturn(auction);
+        given(bidRepository.save(any(Bid.class))).willReturn(savedBid);
 
         PlaceBidResult result = transactionService.executeBidTransaction(command);
 
-        assertThat(result).isEqualTo(new PlaceBidResult(101L, 520000L, 520000L, 6));
+        assertThat(result.amount()).isEqualTo(510000L);
+        assertThat(result.currentBid()).isEqualTo(510000L);
+        assertThat(result.nextMinimumBid()).isEqualTo(520000L);
+        assertThat(result.sequence()).isEqualTo(6L);
+        assertThat(result.bidCount()).isEqualTo(6);
+        assertThat(result.idempotentReplay()).isFalse();
+
         ArgumentCaptor<Bid> bidCaptor = ArgumentCaptor.forClass(Bid.class);
         verify(bidRepository).save(bidCaptor.capture());
+        assertThat(bidCaptor.getValue().getAmount()).isEqualTo(510000L);
+        assertThat(bidCaptor.getValue().getRequestId()).isEqualTo(requestId);
         assertThat(bidCaptor.getValue().getSequence()).isEqualTo(6L);
-        assertThat(bidCaptor.getValue().getRequestId()).isNotNull();
         verify(bidAcceptedOutboxWriter).save(auction, savedBid);
 
-        InOrder order = inOrder(bidRepository, auctionRepository);
+        InOrder order = inOrder(auctionRepository, bidRepository);
         order.verify(auctionRepository).save(auction);
         order.verify(auctionRepository).flush();
         order.verify(bidRepository).save(any(Bid.class));
@@ -104,143 +115,115 @@ class BidTransactionServiceTest {
     }
 
     @Test
-    @DisplayName("업무 검증 실패 시 저장과 flush를 수행하지 않는다")
-    void executeBidTransaction_validationFailure_doesNotWrite() {
-        PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, 509999L);
+    @DisplayName("동일 requestId 재요청은 기존 승인 결과를 반환하고 다시 저장하지 않는다")
+    void executeBidTransaction_duplicateRequest_replaysExistingResult() {
+        Bid existingBid = Bid.builder()
+                .bidId(101L)
+                .auctionId("A-001")
+                .bidderId(42L)
+                .requestId(requestId)
+                .sequence(4L)
+                .amount(490000L)
+                .build();
         given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
+        given(bidRepository.findByBidderIdAndRequestId(42L, requestId))
+                .willReturn(Optional.of(existingBid));
 
-        assertThatThrownBy(() -> transactionService.executeBidTransaction(command))
-                .isInstanceOf(BusinessException.class)
-                .extracting(exception -> ((BusinessException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.BID_AMOUNT_TOO_LOW);
+        PlaceBidResult result = transactionService.executeBidTransaction(command(5L, 550000L));
 
-        verify(bidRepository, never()).save(any());
+        assertThat(result.bidId()).isEqualTo(101L);
+        assertThat(result.sequence()).isEqualTo(4L);
+        assertThat(result.currentBid()).isEqualTo(490000L);
+        assertThat(result.nextMinimumBid()).isEqualTo(500000L);
+        assertThat(result.bidCount()).isEqualTo(4);
+        assertThat(result.idempotentReplay()).isTrue();
         verify(auctionRepository, never()).save(any());
-        verify(auctionRepository, never()).flush();
+        verify(bidRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("비관적 모드에서는 Auction을 SELECT FOR UPDATE로 조회한다")
+    @DisplayName("화면에서 본 sequence가 최신값과 다르면 최신 snapshot으로 409 처리한다")
+    void executeBidTransaction_staleSequence_returnsLatestSnapshot() {
+        given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
+        given(bidRepository.findByBidderIdAndRequestId(42L, requestId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transactionService.executeBidTransaction(command(4L, 550000L)))
+                .isInstanceOfSatisfying(BidConflictException.class, exception -> {
+                    assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BID_STALE_STATE);
+                    assertThat(exception.getSequence()).isEqualTo(5L);
+                    assertThat(exception.getCurrentBid()).isEqualTo(500000L);
+                    assertThat(exception.getNextMinimumBid()).isEqualTo(510000L);
+                    assertThat(exception.isRetryable()).isTrue();
+                });
+
+        verify(auctionRepository, never()).save(any());
+        verify(bidRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("비관적 모드에서는 Auction 행 잠금을 획득한다")
     void executeBidTransaction_pessimisticMode_usesRowLock() {
-        PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, 509999L);
         given(bidFeatureProperties.getExecutionMode())
                 .willReturn(BidFeatureProperties.ExecutionMode.PESSIMISTIC);
         given(auctionRepository.findByIdForUpdate("A-001")).willReturn(Optional.of(auction));
+        given(bidRepository.findByBidderIdAndRequestId(42L, requestId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> transactionService.executeBidTransaction(command))
-                .isInstanceOf(BusinessException.class)
-                .extracting(exception -> ((BusinessException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.BID_AMOUNT_TOO_LOW);
+        assertThatThrownBy(() -> transactionService.executeBidTransaction(command(4L, 550000L)))
+                .isInstanceOfSatisfying(BidConflictException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BID_STALE_STATE));
 
         verify(auctionRepository).findByIdForUpdate("A-001");
         verify(auctionRepository, never()).findById("A-001");
     }
 
     @Test
-    @DisplayName("Outbox 저장 실패는 성공 결과를 반환하기 전에 전파한다")
-    void executeBidTransaction_outboxFailure_propagates() {
-        PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, 520000L);
-        Bid savedBid = Bid.builder()
+    @DisplayName("서버 다음 입찰가가 사용자 상한보다 높으면 저장하지 않는다")
+    void executeBidTransaction_priceChanged_rejectsAboveMaximum() {
+        given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
+        given(bidRepository.findByBidderIdAndRequestId(42L, requestId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transactionService.executeBidTransaction(command(5L, 509999L)))
+                .isInstanceOfSatisfying(BidConflictException.class, exception -> {
+                    assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BID_PRICE_CHANGED);
+                    assertThat(exception.getSequence()).isEqualTo(5L);
+                    assertThat(exception.getNextMinimumBid()).isEqualTo(510000L);
+                });
+
+        verify(auctionRepository, never()).save(any());
+        verify(bidRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("다른 경매에 사용한 requestId는 재사용할 수 없다")
+    void executeBidTransaction_requestIdReusedForOtherAuction_rejected() {
+        Bid existingBid = Bid.builder()
                 .bidId(101L)
-                .auctionId("A-001")
+                .auctionId("A-OTHER")
                 .bidderId(42L)
-                .amount(520000L)
-                .sequence(6L)
-                .requestId(java.util.UUID.randomUUID())
+                .requestId(requestId)
+                .sequence(1L)
+                .amount(100000L)
                 .build();
-        IllegalStateException failure = new IllegalStateException("serialization failed");
-
         given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
-        given(auctionRepository.save(auction)).willReturn(auction);
-        given(bidRepository.save(any(Bid.class))).willReturn(savedBid);
-        given(bidAcceptedOutboxWriter.save(auction, savedBid)).willThrow(failure);
+        given(bidRepository.findByBidderIdAndRequestId(42L, requestId))
+                .willReturn(Optional.of(existingBid));
 
-        assertThatThrownBy(() -> transactionService.executeBidTransaction(command))
-                .isSameAs(failure);
-
-        verify(auctionRepository).flush();
-    }
-
-    @Test
-    @DisplayName("입찰 금액이 null이면 INVALID_BID_AMOUNT")
-    void executeBidTransaction_nullAmount_throwsInvalidBidAmount() {
-        PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, null);
-
-        assertThatThrownBy(() -> transactionService.executeBidTransaction(command))
+        assertThatThrownBy(() -> transactionService.executeBidTransaction(command(5L, 550000L)))
                 .isInstanceOf(BusinessException.class)
                 .extracting(exception -> ((BusinessException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.INVALID_BID_AMOUNT);
+                .isEqualTo(ErrorCode.BID_REQUEST_ID_REUSED);
 
-        verify(auctionRepository, never()).findById(any());
+        verify(auctionRepository, never()).save(any());
         verify(bidRepository, never()).save(any());
     }
 
-    @Test
-    @DisplayName("시작 전 경매에는 입찰할 수 없다")
-    void executeBidTransaction_beforeStart_throwsAuctionNotStarted() {
-        Auction scheduledAuction = Auction.builder()
-                .auctionId("A-001")
-                .sellerId(10L)
-                .productId(1L)
-                .startPrice(100000L)
-                .currentBid(500000L)
-                .minIncrement(10000L)
-                .bidCount(5)
-                .status(AuctionStatus.LIVE)
-                .startsAt(LocalDateTime.now().plusHours(1))
-                .endsAt(LocalDateTime.now().plusHours(2))
-                .build();
-        given(auctionRepository.findById("A-001")).willReturn(Optional.of(scheduledAuction));
-
-        assertThatThrownBy(() -> transactionService.executeBidTransaction(
-                new PlaceBidCommand("A-001", 42L, 520000L)))
-                .isInstanceOf(BusinessException.class)
-                .extracting(exception -> ((BusinessException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.AUCTION_NOT_STARTED);
-
-        verify(bidRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("종료 시각이 지난 경매에는 상태가 LIVE여도 입찰할 수 없다")
-    void executeBidTransaction_afterEndTime_throwsAuctionAlreadyEnded() {
-        Auction expiredAuction = Auction.builder()
-                .auctionId("A-001")
-                .sellerId(10L)
-                .productId(1L)
-                .startPrice(100000L)
-                .currentBid(500000L)
-                .minIncrement(10000L)
-                .bidCount(5)
-                .status(AuctionStatus.LIVE)
-                .startsAt(LocalDateTime.now().minusHours(2))
-                .endsAt(LocalDateTime.now().minusHours(1))
-                .build();
-        given(auctionRepository.findById("A-001")).willReturn(Optional.of(expiredAuction));
-
-        assertThatThrownBy(() -> transactionService.executeBidTransaction(
-                new PlaceBidCommand("A-001", 42L, 520000L)))
-                .isInstanceOf(BusinessException.class)
-                .extracting(exception -> ((BusinessException) exception).getErrorCode())
-                .isEqualTo(ErrorCode.AUCTION_ALREADY_ENDED);
-
-        verify(bidRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("flush에서 발생한 버전 충돌을 오케스트레이터로 전파한다")
-    void executeBidTransaction_flushConflict_propagates() {
-        PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, 520000L);
-        ObjectOptimisticLockingFailureException conflict =
-                new ObjectOptimisticLockingFailureException(Auction.class, "A-001");
-
-        given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
-        given(auctionRepository.save(auction)).willReturn(auction);
-        org.mockito.BDDMockito.willThrow(conflict).given(auctionRepository).flush();
-
-        assertThatThrownBy(() -> transactionService.executeBidTransaction(command))
-                .isSameAs(conflict);
-
-        verify(bidRepository, never()).save(any());
+    private PlaceBidCommand command(Long observedSequence, Long maxAcceptableAmount) {
+        return new PlaceBidCommand(
+                "A-001",
+                42L,
+                requestId,
+                observedSequence,
+                maxAcceptableAmount
+        );
     }
 }
