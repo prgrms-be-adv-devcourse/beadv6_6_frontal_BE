@@ -17,6 +17,7 @@ public enum ErrorCode {
     // 400 Bad Request
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "E001", "입력값이 유효하지 않습니다"),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "E004", "지원하지 않는 HTTP 메서드입니다"),
+    INVALID_BID_AMOUNT(HttpStatus.BAD_REQUEST, "B005", "입찰 금액은 0보다 커야 합니다"),
 
     // 401 Unauthorized
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "E002", "인증이 필요합니다"),

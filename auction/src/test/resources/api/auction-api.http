@@ -72,63 +72,37 @@ GET http://localhost:8084/api/v1/auctions/A-NOTEXIST
 Accept: application/json
 
 
-### ========== 3. 입찰 (POST /api/v2/auctions/{auctionId}/bids) ==========
-# 서버가 currentBid + minIncrement로 승인 금액을 계산한다.
-# X-Member-Id는 Gateway가 JWT 검증 후 전달한다.
+### ========== 3. 기존 프론트 호환 입찰 (POST /api/v1/auctions/{auctionId}/bids) ==========
+# 기존 amount를 최대 허용 금액으로 사용하고 서버가 currentBid + minIncrement를 승인한다.
+# Gateway 경유 시 X-Member-Id는 JWT 검증 후 자동 전달된다.
 
-### 3-1. 입찰 실행 (정상)
-POST http://localhost:8084/api/v2/auctions/A-AJ1HI/bids
+### 3-1. v1 호환 입찰 실행
+POST http://localhost:8084/api/v1/auctions/A-AJ1HI/bids
 X-Member-Id: 42
 Content-Type: application/json
 
 {
-  "requestId": "4d47e190-0402-4048-bc2c-89dd54343cdc",
-  "observedSequence": 0,
-  "maxAcceptableAmount": 1600000
+  "amount": 1600000
 }
 
-### 3-2. 동일 requestId 멱등 재요청
-POST http://localhost:8084/api/v2/auctions/A-AJ1HI/bids
-X-Member-Id: 42
+### 3-2. 본인 경매 입찰 (403 SELF_BID_NOT_ALLOWED)
+POST http://localhost:8084/api/v1/auctions/A-AJ1HI/bids
+X-Member-Id: 10
 Content-Type: application/json
 
 {
-  "requestId": "4d47e190-0402-4048-bc2c-89dd54343cdc",
-  "observedSequence": 0,
-  "maxAcceptableAmount": 1600000
+  "amount": 2000000
 }
 
-### 3-3. 오래된 sequence (409 BID_STALE_STATE)
+### 3-3. 정식 v2 입찰 계약
 POST http://localhost:8084/api/v2/auctions/A-AJ1HI/bids
 X-Member-Id: 43
 Content-Type: application/json
 
 {
   "requestId": "63c43af3-ae20-49bb-9bd9-b330bbfd06b8",
-  "observedSequence": 0,
-  "maxAcceptableAmount": 2000000
-}
-
-### 3-4. 본인 경매 입찰 (403 SELF_BID_NOT_ALLOWED)
-POST http://localhost:8084/api/v2/auctions/A-AJ1HI/bids
-X-Member-Id: 10
-Content-Type: application/json
-
-{
-  "requestId": "7bfbe7d2-daa0-4a45-a508-d083e8448bd9",
   "observedSequence": 1,
   "maxAcceptableAmount": 2000000
-}
-
-### 3-5. 종료된 경매 입찰 (409 AUCTION_ALREADY_ENDED)
-POST http://localhost:8084/api/v2/auctions/A-ENDED1/bids
-X-Member-Id: 42
-Content-Type: application/json
-
-{
-  "requestId": "80c7c9b2-47ce-4266-bd2c-b319c2b135a9",
-  "observedSequence": 0,
-  "maxAcceptableAmount": 500000
 }
 
 

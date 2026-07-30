@@ -87,7 +87,9 @@ public class GlobalExceptionHandler {
     /** 요청 본문의 Bean Validation 실패를 처리한다. */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
-        ErrorCode errorCode = ErrorCode.INVALID_INPUT;
+        boolean invalidBidAmount = e.getBindingResult().getFieldErrors().stream()
+                .anyMatch(fieldError -> "amount".equals(fieldError.getField()));
+        ErrorCode errorCode = invalidBidAmount ? ErrorCode.INVALID_BID_AMOUNT : ErrorCode.INVALID_INPUT;
         String message = e.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(fieldError -> fieldError.getDefaultMessage())

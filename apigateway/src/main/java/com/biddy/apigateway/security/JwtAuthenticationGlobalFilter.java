@@ -45,7 +45,7 @@ public class JwtAuthenticationGlobalFilter implements GlobalFilter, Ordered {
     // 비로그인도 조회 가능하지만, 로그인 상태면 회원 정보를 같이 넘겨줘야 하는 경로
     // (예: 상품 목록/상세는 비로그인도 보이지만, 로그인 상태면 찜 여부 등을 함께 응답해야 함)
     // GET만 optional-auth로 통과되고, 같은 prefix라도 POST/PATCH/DELETE 등은 아래 기본 로직에 따라
-    // 토큰이 없거나 유효하지 않으면 401로 막힘 (예: POST /api/v2/auctions/{id}/bids, /watch)
+    // 토큰이 없거나 유효하지 않으면 401로 막힘 (예: POST /api/v1 또는 v2/auctions/{id}/bids, /watch)
     private static final List<String> OPTIONAL_AUTH_GET_WHITELIST = List.of(
             "/api/products",  // 상품 목록/상세 (찜 여부 포함)
             "/api/v1/auctions"  // 경매 피드/상세/결과/입찰내역/관심여부 조회 (GET만 비로그인 허용)

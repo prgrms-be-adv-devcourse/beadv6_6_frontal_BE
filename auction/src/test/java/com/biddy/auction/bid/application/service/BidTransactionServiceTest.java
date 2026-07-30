@@ -115,6 +115,32 @@ class BidTransactionServiceTest {
     }
 
     @Test
+    @DisplayName("v1 호환 명령은 observedSequence 없이 최신 DB 상태에서 다음 입찰가를 계산한다")
+    void executeBidTransaction_compatibleV1_usesCurrentDatabaseSequence() {
+        PlaceBidCommand command = PlaceBidCommand.compatibleV1("A-001", 42L, 550000L);
+        Bid savedBid = Bid.builder()
+                .bidId(101L)
+                .auctionId("A-001")
+                .bidderId(42L)
+                .requestId(command.requestId())
+                .sequence(6L)
+                .amount(510000L)
+                .build();
+
+        given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
+        given(bidRepository.findByBidderIdAndRequestId(42L, command.requestId()))
+                .willReturn(Optional.empty());
+        given(auctionRepository.save(auction)).willReturn(auction);
+        given(bidRepository.save(any(Bid.class))).willReturn(savedBid);
+
+        PlaceBidResult result = transactionService.executeBidTransaction(command);
+
+        assertThat(result.amount()).isEqualTo(510000L);
+        assertThat(result.sequence()).isEqualTo(6L);
+        verify(bidAcceptedOutboxWriter).save(auction, savedBid);
+    }
+
+    @Test
     @DisplayName("동일 requestId 재요청은 기존 승인 결과를 반환하고 다시 저장하지 않는다")
     void executeBidTransaction_duplicateRequest_replaysExistingResult() {
         Bid existingBid = Bid.builder()

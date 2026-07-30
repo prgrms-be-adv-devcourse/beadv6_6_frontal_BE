@@ -54,7 +54,7 @@ public class BidTransactionService {
         long currentSequence = auction.currentBidSequence();
         long nextMinimumBid = calculateNextAmount(auction.getCurrentBid(), auction.getMinIncrement());
 
-        if (command.observedSequence() != currentSequence) {
+        if (command.observedSequence() != null && command.observedSequence() != currentSequence) {
             throw new BidConflictException(
                     ErrorCode.BID_STALE_STATE,
                     currentSequence,
@@ -140,8 +140,7 @@ public class BidTransactionService {
                 || command.bidderId() == null
                 || command.bidderId() <= 0
                 || command.requestId() == null
-                || command.observedSequence() == null
-                || command.observedSequence() < 0
+                || (command.observedSequence() != null && command.observedSequence() < 0)
                 || command.maxAcceptableAmount() == null
                 || command.maxAcceptableAmount() <= 0) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);

@@ -728,9 +728,12 @@ Redis 장애 주입은 운영 전환 전에 별도로 수행한다.
 - `BidV2TransactionService` → `BidTransactionService`
 - `BidV2UseCase` → `BidUseCase`
 - 애플리케이션 command/result의 `V2` 접미사를 제거했다.
-- 기존 금액 직접 지정 v1 입찰 POST, DTO, 트랜잭션 서비스와 관련 테스트를 삭제했다.
+- 기존 금액 직접 지정 서비스·트랜잭션 구현은 삭제했다.
 - 기존 GET 입찰 내역과 내 입찰 조회는 `BidQueryService`/`BidQueryUseCase`로 분리해 유지한다.
-- HTTP 계약 버전인 `BidV2Controller`, `PlaceBidV2Request/Response`, `/api/v2/...` 경로는 유지한다.
+- 배포된 프론트엔드 호환을 위해 `/api/v1/.../bids`와 `{amount}` 응답 계약은 얇은 v1 Controller 어댑터로 유지한다.
+- v1의 `amount`는 정식 서비스의 `maxAcceptableAmount`로 변환하며, DB 최신 상태에서 서버가 실제 다음 입찰가를 계산한다.
+- v1 requestId는 `auctionId + bidderId + amount`로 결정적으로 생성해 동일 HTTP 재요청을 멱등 처리한다.
+- HTTP 정식 계약인 `BidV2Controller`, `PlaceBidV2Request/Response`, `/api/v2/...` 경로도 유지한다.
 - API 기능 플래그는 제거했고 Gateway가 `/api/v2/auctions/**`를 정식 라우팅한다.
 
-이 전환 이후 입찰 실행 롤백은 구형 v1 경로 활성화가 아니라 직전 애플리케이션 커밋 배포로 수행한다.
+프론트엔드가 v2 계약으로 전환된 후 v1 어댑터 제거 여부를 다시 결정한다. 구형 입찰 서비스 자체는 복원하지 않는다.
