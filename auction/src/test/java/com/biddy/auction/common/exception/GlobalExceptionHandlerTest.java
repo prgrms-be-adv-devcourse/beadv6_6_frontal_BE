@@ -3,6 +3,7 @@ package com.biddy.auction.common.exception;
 import com.biddy.auction.auction.domain.model.Auction;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -29,6 +30,17 @@ class GlobalExceptionHandlerTest {
     void dataStoreFailure_returnsServiceUnavailable() {
         ResponseEntity<ErrorResponse> response = handler.handleServiceUnavailable(
                 new DataAccessResourceFailureException("temporarily unavailable"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(503);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code()).isEqualTo("S002");
+    }
+
+    @Test
+    @DisplayName("DB 행 잠금 획득 실패는 재시도 가능한 503 S002로 변환한다")
+    void lockTimeout_returnsServiceUnavailable() {
+        ResponseEntity<ErrorResponse> response = handler.handleServiceUnavailable(
+                new CannotAcquireLockException("lock timeout"));
 
         assertThat(response.getStatusCode().value()).isEqualTo(503);
         assertThat(response.getBody()).isNotNull();

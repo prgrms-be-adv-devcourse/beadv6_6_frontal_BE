@@ -36,8 +36,8 @@ public interface AuctionRepository {
      */
     Optional<Auction> findById(String auctionId);
 
-    // 비관적 락 메서드 제거 - 낙관적 락(@Version)으로 대체됨
-    // findByIdForUpdate 메서드는 더 이상 사용하지 않음
+    /** 해당 경매 행에 배타적 잠금을 획득해 입찰을 직렬 처리한다. */
+    Optional<Auction> findByIdForUpdate(String auctionId);
 
     /**
      * 경매를 저장한다.

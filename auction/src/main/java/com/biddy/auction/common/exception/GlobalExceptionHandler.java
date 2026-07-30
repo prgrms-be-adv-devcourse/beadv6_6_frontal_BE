@@ -5,7 +5,9 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
@@ -125,6 +127,8 @@ public class GlobalExceptionHandler {
     /** DB 또는 Redis 연결 실패와 타임아웃을 재시도 가능한 503으로 반환한다. */
     @ExceptionHandler({
             DataAccessResourceFailureException.class,
+            CannotAcquireLockException.class,
+            PessimisticLockingFailureException.class,
             QueryTimeoutException.class,
             CannotCreateTransactionException.class,
             TransactionTimedOutException.class

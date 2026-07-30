@@ -4,6 +4,7 @@ import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
 import com.biddy.auction.bid.application.dto.PlaceBidCommand;
 import com.biddy.auction.bid.application.dto.PlaceBidResult;
+import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.common.exception.BusinessException;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -31,6 +33,7 @@ public class BidTransactionService {
 
     private final BidRepository bidRepository;
     private final AuctionRepository auctionRepository;
+    private final BidFeatureProperties bidFeatureProperties;
 
     /**
      * 입찰 저장과 경매 갱신을 하나의 새 트랜잭션으로 실행한다.
@@ -43,7 +46,7 @@ public class BidTransactionService {
     public PlaceBidResult executeBidTransaction(PlaceBidCommand command) {
         validateCommand(command);
 
-        Auction auction = auctionRepository.findById(command.auctionId())
+        Auction auction = findAuctionForBid(command.auctionId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
 
         validateBid(auction, command);
@@ -89,6 +92,13 @@ public class BidTransactionService {
         if (command.amount() == null || command.amount() <= 0) {
             throw new BusinessException(ErrorCode.INVALID_BID_AMOUNT);
         }
+    }
+
+    private Optional<Auction> findAuctionForBid(String auctionId) {
+        if (bidFeatureProperties.getExecutionMode() == BidFeatureProperties.ExecutionMode.PESSIMISTIC) {
+            return auctionRepository.findByIdForUpdate(auctionId);
+        }
+        return auctionRepository.findById(auctionId);
     }
 
     private void validateBid(Auction auction, PlaceBidCommand command) {

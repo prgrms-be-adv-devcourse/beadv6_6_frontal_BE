@@ -2,10 +2,14 @@ package com.biddy.auction.auction.infra.persistence;
 
 import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.model.AuctionStatus;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
@@ -33,8 +37,14 @@ public interface AuctionJpaRepository extends JpaRepository<Auction, String> {
             Pageable pageable
     );
 
-    // 비관적 락 메서드 제거 - 낙관적 락(@Version)으로 대체됨
-    // @Lock(LockModeType.PESSIMISTIC_WRITE) 사용하지 않음
+    /** 입찰 직렬화를 위해 해당 경매 행 하나를 SELECT FOR UPDATE로 조회한다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints({
+            @QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"),
+            @QueryHint(name = "jakarta.persistence.query.timeout", value = "3000")
+    })
+    @Query("SELECT a FROM Auction a WHERE a.auctionId = :auctionId")
+    Optional<Auction> findByIdForUpdate(@Param("auctionId") String auctionId);
 
     /** 종료 시각이 지난 LIVE 상태 경매 목록 조회 (스케줄러용) */
     List<Auction> findAllByStatusAndEndsAtBefore(AuctionStatus status, LocalDateTime now);

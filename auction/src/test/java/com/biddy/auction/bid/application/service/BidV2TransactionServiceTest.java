@@ -5,6 +5,7 @@ import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
 import com.biddy.auction.bid.application.dto.PlaceBidV2Command;
 import com.biddy.auction.bid.application.dto.PlaceBidV2Result;
+import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.common.exception.BidConflictException;
@@ -40,6 +41,9 @@ class BidV2TransactionServiceTest {
 
     @Mock
     private AuctionRepository auctionRepository;
+
+    @Mock
+    private BidFeatureProperties bidFeatureProperties;
 
     @InjectMocks
     private BidV2TransactionService transactionService;
@@ -149,6 +153,22 @@ class BidV2TransactionServiceTest {
 
         verify(auctionRepository, never()).save(any());
         verify(bidRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("비관적 모드에서는 v2 입찰도 Auction 행 잠금을 획득한다")
+    void executeBidTransaction_pessimisticMode_usesRowLock() {
+        given(bidFeatureProperties.getExecutionMode())
+                .willReturn(BidFeatureProperties.ExecutionMode.PESSIMISTIC);
+        given(auctionRepository.findByIdForUpdate("A-001")).willReturn(Optional.of(auction));
+        given(bidRepository.findByBidderIdAndRequestId(42L, requestId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> transactionService.executeBidTransaction(command(4L, 550000L)))
+                .isInstanceOfSatisfying(BidConflictException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BID_STALE_STATE));
+
+        verify(auctionRepository).findByIdForUpdate("A-001");
+        verify(auctionRepository, never()).findById("A-001");
     }
 
     @Test

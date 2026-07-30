@@ -4,6 +4,7 @@ import com.biddy.auction.auction.domain.model.Auction;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
 import com.biddy.auction.bid.application.dto.PlaceBidV2Command;
 import com.biddy.auction.bid.application.dto.PlaceBidV2Result;
+import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.common.exception.BidConflictException;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 /** API v2 입찰 한 건을 독립 트랜잭션에서 처리한다. */
 @Service
@@ -26,6 +28,7 @@ public class BidV2TransactionService {
 
     private final BidRepository bidRepository;
     private final AuctionRepository auctionRepository;
+    private final BidFeatureProperties bidFeatureProperties;
 
     @Transactional(
             propagation = Propagation.REQUIRES_NEW,
@@ -34,7 +37,7 @@ public class BidV2TransactionService {
     public PlaceBidV2Result executeBidTransaction(PlaceBidV2Command command) {
         validateCommand(command);
 
-        Auction auction = auctionRepository.findById(command.auctionId())
+        Auction auction = findAuctionForBid(command.auctionId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUCTION_NOT_FOUND));
 
         Bid existingBid = bidRepository.findByBidderIdAndRequestId(
@@ -140,6 +143,13 @@ public class BidV2TransactionService {
                 || command.maxAcceptableAmount() <= 0) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
+    }
+
+    private Optional<Auction> findAuctionForBid(String auctionId) {
+        if (bidFeatureProperties.getExecutionMode() == BidFeatureProperties.ExecutionMode.PESSIMISTIC) {
+            return auctionRepository.findByIdForUpdate(auctionId);
+        }
+        return auctionRepository.findById(auctionId);
     }
 
     private void validateAuction(Auction auction, Long bidderId) {

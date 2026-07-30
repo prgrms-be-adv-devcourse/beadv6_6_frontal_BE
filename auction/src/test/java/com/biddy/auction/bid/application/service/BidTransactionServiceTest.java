@@ -5,6 +5,7 @@ import com.biddy.auction.auction.domain.model.AuctionStatus;
 import com.biddy.auction.auction.domain.repository.AuctionRepository;
 import com.biddy.auction.bid.application.dto.PlaceBidCommand;
 import com.biddy.auction.bid.application.dto.PlaceBidResult;
+import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.common.exception.BusinessException;
@@ -39,6 +40,9 @@ class BidTransactionServiceTest {
 
     @Mock
     private AuctionRepository auctionRepository;
+
+    @Mock
+    private BidFeatureProperties bidFeatureProperties;
 
     @InjectMocks
     private BidTransactionService transactionService;
@@ -108,6 +112,23 @@ class BidTransactionServiceTest {
         verify(bidRepository, never()).save(any());
         verify(auctionRepository, never()).save(any());
         verify(auctionRepository, never()).flush();
+    }
+
+    @Test
+    @DisplayName("비관적 모드에서는 Auction을 SELECT FOR UPDATE로 조회한다")
+    void executeBidTransaction_pessimisticMode_usesRowLock() {
+        PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, 509999L);
+        given(bidFeatureProperties.getExecutionMode())
+                .willReturn(BidFeatureProperties.ExecutionMode.PESSIMISTIC);
+        given(auctionRepository.findByIdForUpdate("A-001")).willReturn(Optional.of(auction));
+
+        assertThatThrownBy(() -> transactionService.executeBidTransaction(command))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.BID_AMOUNT_TOO_LOW);
+
+        verify(auctionRepository).findByIdForUpdate("A-001");
+        verify(auctionRepository, never()).findById("A-001");
     }
 
     @Test
