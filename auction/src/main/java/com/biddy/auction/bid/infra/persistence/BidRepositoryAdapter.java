@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * BidRepository Port 구현체 (Adapter).
@@ -45,5 +46,10 @@ public class BidRepositoryAdapter implements BidRepository {
     @Override
     public Optional<Bid> findTopByAuctionIdAndBidderId(String auctionId, Long bidderId) {
         return bidJpaRepository.findTopByAuctionIdAndBidderIdOrderByAmountDesc(auctionId, bidderId);
+    }
+
+    @Override
+    public Optional<Bid> findByBidderIdAndRequestId(Long bidderId, UUID requestId) {
+        return bidJpaRepository.findByBidderIdAndRequestId(bidderId, requestId);
     }
 }

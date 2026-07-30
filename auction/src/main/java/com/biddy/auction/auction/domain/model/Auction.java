@@ -127,14 +127,20 @@ public class Auction extends BaseEntity {
      * @param bidderId 입찰자 회원 ID
      */
     public void applyBid(Long bidAmount, Long bidderId) {
-        long lastSequence = this.bidSequence == null ? 0L : this.bidSequence;
-        long existingBidCount = this.bidCount == null ? 0L : this.bidCount.longValue();
+        long nextSequence = currentBidSequence() + 1;
 
         this.currentBid = bidAmount;
         this.currentBidderId = bidderId;
         this.bidCount++;
         // V3 적용 전 ddl-auto가 0/null로 만든 전환 DB에서도 기존 bidCount 다음 값부터 시작한다.
-        this.bidSequence = Math.max(lastSequence, existingBidCount) + 1;
+        this.bidSequence = nextSequence;
+    }
+
+    /** V3 백필 전환 중에도 현재 성공 입찰 순서를 일관되게 반환한다. */
+    public long currentBidSequence() {
+        long storedSequence = this.bidSequence == null ? 0L : this.bidSequence;
+        long storedBidCount = this.bidCount == null ? 0L : this.bidCount.longValue();
+        return Math.max(storedSequence, storedBidCount);
     }
 
     /**

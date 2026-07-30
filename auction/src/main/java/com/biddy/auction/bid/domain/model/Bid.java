@@ -23,12 +23,11 @@ import java.util.UUID;
  * </ul></p>
  */
 @Entity
-@Table(name = "bid", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_bid_auction_sequence", columnNames = {"auction_id", "sequence"}),
-        @UniqueConstraint(name = "uk_bid_bidder_request", columnNames = {"bidder_id", "request_id"})
-}, indexes = {
+@Table(name = "bid", indexes = {
         @Index(name = "idx_bid_auction_bid_at", columnList = "auction_id, bid_at DESC"),
-        @Index(name = "idx_bid_auction_amount", columnList = "auction_id, amount DESC")
+        @Index(name = "idx_bid_auction_amount", columnList = "auction_id, amount DESC"),
+        @Index(name = "uk_bid_auction_sequence", columnList = "auction_id, sequence", unique = true),
+        @Index(name = "uk_bid_bidder_request", columnList = "bidder_id, request_id", unique = true)
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

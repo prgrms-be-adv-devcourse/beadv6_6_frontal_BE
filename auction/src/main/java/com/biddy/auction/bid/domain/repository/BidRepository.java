@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 입찰 Repository Port (도메인 레이어 인터페이스).
@@ -56,4 +57,7 @@ public interface BidRepository {
      * @return 해당 경매에서의 최고 입찰 (없으면 empty)
      */
     Optional<Bid> findTopByAuctionIdAndBidderId(String auctionId, Long bidderId);
+
+    /** 입찰자 범위의 요청 멱등성 키로 기존 성공 입찰을 조회한다. */
+    Optional<Bid> findByBidderIdAndRequestId(Long bidderId, UUID requestId);
 }

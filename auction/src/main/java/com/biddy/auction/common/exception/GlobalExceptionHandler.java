@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 전역 예외 처리 핸들러.
@@ -35,6 +36,15 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** v2 입찰 상태 충돌에 클라이언트가 복구할 최신 경매 snapshot을 포함한다. */
+    @ExceptionHandler(BidConflictException.class)
+    protected ResponseEntity<BidConflictResponse> handleBidConflict(BidConflictException e) {
+        log.warn("Bid state conflict: code={}, sequence={}, currentBid={}",
+                e.getErrorCode().getCode(), e.getSequence(), e.getCurrentBid());
+        return ResponseEntity.status(e.getErrorCode().getStatus())
+                .body(BidConflictResponse.of(e));
+    }
 
     /**
      * 비즈니스 예외 처리.
@@ -131,6 +141,13 @@ public class GlobalExceptionHandler {
         log.error("Data integrity violation", e);
         ErrorCode errorCode = ErrorCode.DATA_INTEGRITY_ERROR;
         return ResponseEntity.status(errorCode.getStatus()).body(ErrorResponse.of(errorCode));
+    }
+
+    /** 기능 플래그로 비활성화했거나 존재하지 않는 라우트는 일반적인 404로 유지한다. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    protected ResponseEntity<Void> handleNoResourceFound(NoResourceFoundException e) {
+        log.debug("No resource found: {}", e.getResourcePath());
+        return ResponseEntity.notFound().build();
     }
 
     /**

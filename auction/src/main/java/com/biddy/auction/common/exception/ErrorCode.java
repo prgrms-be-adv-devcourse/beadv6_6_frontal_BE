@@ -41,6 +41,9 @@ public enum ErrorCode {
     AUCTION_STILL_LIVE(HttpStatus.CONFLICT, "A003", "아직 진행 중인 경매입니다"),
     AUCTION_NOT_STARTED(HttpStatus.CONFLICT, "A005", "아직 시작되지 않은 경매입니다"),
     BID_CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "B004", "동시 입찰 충돌이 발생했습니다. 최신 가격을 확인한 후 다시 시도해주세요"),
+    BID_STALE_STATE(HttpStatus.CONFLICT, "B006", "확인한 입찰 순서가 최신 상태와 다릅니다"),
+    BID_PRICE_CHANGED(HttpStatus.CONFLICT, "B007", "다음 입찰가가 동의한 최대 금액을 초과했습니다"),
+    BID_REQUEST_ID_REUSED(HttpStatus.CONFLICT, "B008", "이미 다른 경매에 사용한 입찰 요청 ID입니다"),
 
     // 5xx Server Error
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "서버 내부 오류가 발생했습니다"),

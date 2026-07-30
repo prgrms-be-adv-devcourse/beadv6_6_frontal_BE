@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Bid JPA Repository (Spring Data JPA).
@@ -30,4 +31,7 @@ public interface BidJpaRepository extends JpaRepository<Bid, Long> {
 
     /** 특정 입찰자의 특정 경매에서 최고 입찰 조회 */
     Optional<Bid> findTopByAuctionIdAndBidderIdOrderByAmountDesc(String auctionId, Long bidderId);
+
+    /** 입찰자 범위의 멱등성 요청 조회 */
+    Optional<Bid> findByBidderIdAndRequestId(Long bidderId, UUID requestId);
 }
