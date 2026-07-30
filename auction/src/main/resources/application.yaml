@@ -55,3 +55,13 @@ outbox:
     delay: ${OUTBOX_SCHEDULER_DELAY:5000}  # 스케줄러 실행 주기 (ms)
     max-retry-count: ${OUTBOX_MAX_RETRY_COUNT:5}  # 최대 재시도 횟수
     send-timeout-seconds: ${OUTBOX_SEND_TIMEOUT:10}  # Kafka 발행 타임아웃 (초)
+
+# 실시간 입찰 개선 단계별 전환 플래그
+# 기본값은 현재 운영 중인 낙관적 락 + Pod 직접 WebSocket 발행 경로와 동일하다.
+bid:
+  execution-mode: ${BID_EXECUTION_MODE:optimistic}
+  websocket-source: ${BID_WEBSOCKET_SOURCE:direct}
+  api-v2:
+    enabled: ${BID_API_V2_ENABLED:false}
+  redis-projection:
+    enabled: ${BID_REDIS_PROJECTION_ENABLED:false}
