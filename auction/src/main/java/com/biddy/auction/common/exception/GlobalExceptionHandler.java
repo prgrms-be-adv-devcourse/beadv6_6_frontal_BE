@@ -40,7 +40,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /** v2 입찰 상태 충돌에 클라이언트가 복구할 최신 경매 snapshot을 포함한다. */
+    /** 입찰 상태 충돌에 클라이언트가 복구할 최신 경매 snapshot을 포함한다. */
     @ExceptionHandler(BidConflictException.class)
     protected ResponseEntity<BidConflictResponse> handleBidConflict(BidConflictException e) {
         log.warn("Bid state conflict: code={}, sequence={}, currentBid={}",

@@ -25,9 +25,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(BidV2Controller.class)
+@WebMvcTest(BidController.class)
 @AutoConfigureMockMvc(addFilters = false)
-class BidV2ControllerTest {
+class BidControllerTest {
 
     private static final UUID REQUEST_ID = UUID.fromString("4d47e190-0402-4048-bc2c-89dd54343cdc");
 
@@ -38,7 +38,7 @@ class BidV2ControllerTest {
     private BidUseCase bidUseCase;
 
     @Test
-    @DisplayName("신규 v2 입찰은 서버 계산 결과와 함께 201을 반환한다")
+    @DisplayName("신규 입찰은 서버 계산 결과와 함께 201을 반환한다")
     void placeBid_newRequest_returnsCreated() throws Exception {
         given(bidUseCase.placeBid(any())).willReturn(result(false));
 
@@ -96,7 +96,7 @@ class BidV2ControllerTest {
     }
 
     @Test
-    @DisplayName("v2 필수 요청 필드가 없으면 400 E001을 반환한다")
+    @DisplayName("필수 요청 필드가 없으면 400 E001을 반환한다")
     void placeBid_missingRequestId_returnsInvalidInput() throws Exception {
         mockMvc.perform(post("/api/v2/auctions/A-001/bids")
                         .header("X-Member-Id", "42")

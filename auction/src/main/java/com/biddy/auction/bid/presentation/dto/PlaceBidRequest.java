@@ -6,8 +6,8 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 import java.util.UUID;
 
-/** 서버 계산 입찰 API v2 요청. */
-public record PlaceBidV2Request(
+/** 서버 계산 입찰 요청. */
+public record PlaceBidRequest(
         @NotNull(message = "입찰 요청 ID는 필수입니다")
         UUID requestId,
 

@@ -2,7 +2,7 @@ package com.biddy.auction.common.exception;
 
 import java.time.LocalDateTime;
 
-/** v2 입찰 충돌 응답. 최신 snapshot을 받아 새 요청 여부를 사용자가 결정한다. */
+/** 입찰 충돌 응답. 최신 snapshot을 받아 새 요청 여부를 사용자가 결정한다. */
 public record BidConflictResponse(
         LocalDateTime timestamp,
         int status,

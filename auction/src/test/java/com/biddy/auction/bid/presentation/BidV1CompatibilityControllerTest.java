@@ -29,9 +29,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(BidV1Controller.class)
+@WebMvcTest(BidV1CompatibilityController.class)
 @AutoConfigureMockMvc(addFilters = false)
-class BidV1ControllerTest {
+class BidV1CompatibilityControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
