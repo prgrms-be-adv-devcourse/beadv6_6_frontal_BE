@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -54,6 +55,7 @@ class BidTransactionServiceTest {
                 .currentBid(500000L)
                 .minIncrement(10000L)
                 .bidCount(5)
+                .bidSequence(5L)
                 .status(AuctionStatus.LIVE)
                 .startsAt(LocalDateTime.now().minusHours(1))
                 .endsAt(LocalDateTime.now().plusHours(1))
@@ -69,6 +71,8 @@ class BidTransactionServiceTest {
                 .auctionId("A-001")
                 .bidderId(42L)
                 .amount(520000L)
+                .sequence(6L)
+                .requestId(java.util.UUID.randomUUID())
                 .build();
 
         given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
@@ -78,9 +82,15 @@ class BidTransactionServiceTest {
         PlaceBidResult result = transactionService.executeBidTransaction(command);
 
         assertThat(result).isEqualTo(new PlaceBidResult(101L, 520000L, 520000L, 6));
+        ArgumentCaptor<Bid> bidCaptor = ArgumentCaptor.forClass(Bid.class);
+        verify(bidRepository).save(bidCaptor.capture());
+        assertThat(bidCaptor.getValue().getSequence()).isEqualTo(6L);
+        assertThat(bidCaptor.getValue().getRequestId()).isNotNull();
+
         InOrder order = inOrder(bidRepository, auctionRepository);
-        order.verify(bidRepository).save(any(Bid.class));
         order.verify(auctionRepository).save(auction);
+        order.verify(auctionRepository).flush();
+        order.verify(bidRepository).save(any(Bid.class));
         order.verify(auctionRepository).flush();
     }
 
@@ -170,21 +180,16 @@ class BidTransactionServiceTest {
     @DisplayName("flush에서 발생한 버전 충돌을 오케스트레이터로 전파한다")
     void executeBidTransaction_flushConflict_propagates() {
         PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, 520000L);
-        Bid savedBid = Bid.builder()
-                .bidId(101L)
-                .auctionId("A-001")
-                .bidderId(42L)
-                .amount(520000L)
-                .build();
         ObjectOptimisticLockingFailureException conflict =
                 new ObjectOptimisticLockingFailureException(Auction.class, "A-001");
 
         given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
-        given(bidRepository.save(any(Bid.class))).willReturn(savedBid);
         given(auctionRepository.save(auction)).willReturn(auction);
         org.mockito.BDDMockito.willThrow(conflict).given(auctionRepository).flush();
 
         assertThatThrownBy(() -> transactionService.executeBidTransaction(command))
                 .isSameAs(conflict);
+
+        verify(bidRepository, never()).save(any());
     }
 }

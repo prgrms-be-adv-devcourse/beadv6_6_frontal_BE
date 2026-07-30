@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 입찰 도메인 엔티티.
@@ -22,7 +23,10 @@ import java.time.LocalDateTime;
  * </ul></p>
  */
 @Entity
-@Table(name = "bid", indexes = {
+@Table(name = "bid", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_bid_auction_sequence", columnNames = {"auction_id", "sequence"}),
+        @UniqueConstraint(name = "uk_bid_bidder_request", columnNames = {"bidder_id", "request_id"})
+}, indexes = {
         @Index(name = "idx_bid_auction_bid_at", columnList = "auction_id, bid_at DESC"),
         @Index(name = "idx_bid_auction_amount", columnList = "auction_id, amount DESC")
 })
@@ -48,6 +52,15 @@ public class Bid {
     /** 입찰 금액 (currentBid + minIncrement 이상이어야 유효) */
     @Column(name = "amount", nullable = false)
     private Long amount;
+
+    /** 동일 경매 안에서 성공 입찰의 단조 증가 순서 */
+    // V3 SQL이 기존 Bid를 백필한 후 DB NOT NULL을 확정한다.
+    @Column(name = "sequence")
+    private Long sequence;
+
+    /** 입찰자 범위에서 중복 요청을 식별하는 멱등성 키 */
+    @Column(name = "request_id", updatable = false)
+    private UUID requestId;
 
     /** 입찰 시각 (생성 시 자동 설정) */
     @Column(name = "bid_at", nullable = false)

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 한 번의 입찰 시도를 독립 트랜잭션으로 처리한다.
@@ -47,21 +48,26 @@ public class BidTransactionService {
 
         validateBid(auction, command);
 
+        auction.applyBid(command.amount(), command.bidderId());
+        auctionRepository.save(auction);
+
+        // Auction version UPDATE를 먼저 flush해 이 시도의 낙관적 락 승패를 확정한다.
+        // Bid의 (auction_id, sequence) 고유 제약이 버전 충돌보다 먼저 발생하는 것을 막는다.
+        auctionRepository.flush();
+
         Bid savedBid = bidRepository.save(Bid.builder()
                 .auctionId(command.auctionId())
                 .bidderId(command.bidderId())
                 .amount(command.amount())
+                .sequence(auction.getBidSequence())
+                .requestId(UUID.randomUUID())
                 .build());
 
-        auction.applyBid(command.amount(), command.bidderId());
-        auctionRepository.save(auction);
-
-        // Bid INSERT와 Auction version UPDATE를 함께 flush한다.
-        // 충돌 시 이 트랜잭션 전체가 롤백되어 고아 Bid가 남지 않는다.
+        // Bid INSERT까지 같은 트랜잭션에서 확인한다. 이후 실패하면 앞선 Auction UPDATE도 롤백된다.
         auctionRepository.flush();
 
-        log.debug("입찰 트랜잭션 flush 완료 - 경매: {}, 입찰ID: {}, 금액: {}원",
-                command.auctionId(), savedBid.getBidId(), command.amount());
+        log.debug("입찰 트랜잭션 flush 완료 - 경매: {}, 입찰ID: {}, sequence: {}, 금액: {}원",
+                command.auctionId(), savedBid.getBidId(), savedBid.getSequence(), command.amount());
 
         return new PlaceBidResult(
                 savedBid.getBidId(),

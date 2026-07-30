@@ -64,6 +64,13 @@ public class Auction extends BaseEntity {
     @Column(name = "bid_count", nullable = false)
     private Integer bidCount = 0;
 
+    /** 성공적으로 커밋된 입찰의 경매별 단조 증가 순서 */
+    @Builder.Default
+    // 운영 DB는 V3 SQL이 기존 Bid를 백필한 뒤 NOT NULL을 확정한다.
+    // ddl-auto:update가 데이터가 있는 테이블에 바로 NOT NULL 컬럼을 추가하지 않도록 전환 중에는 nullable로 매핑한다.
+    @Column(name = "bid_sequence")
+    private Long bidSequence = 0L;
+
     @Builder.Default
     @Column(name = "watcher_count", nullable = false)
     private Integer watcherCount = 0;
@@ -120,9 +127,14 @@ public class Auction extends BaseEntity {
      * @param bidderId 입찰자 회원 ID
      */
     public void applyBid(Long bidAmount, Long bidderId) {
+        long lastSequence = this.bidSequence == null ? 0L : this.bidSequence;
+        long existingBidCount = this.bidCount == null ? 0L : this.bidCount.longValue();
+
         this.currentBid = bidAmount;
         this.currentBidderId = bidderId;
         this.bidCount++;
+        // V3 적용 전 ddl-auto가 0/null로 만든 전환 DB에서도 기존 bidCount 다음 값부터 시작한다.
+        this.bidSequence = Math.max(lastSequence, existingBidCount) + 1;
     }
 
     /**

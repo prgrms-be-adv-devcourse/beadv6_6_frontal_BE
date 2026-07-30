@@ -21,6 +21,7 @@ class AuctionTest {
                 .currentBid(500000L)
                 .currentBidderId(20L)
                 .bidCount(5)
+                .bidSequence(5L)
                 .endsAt(LocalDateTime.now().plusHours(1))
                 .build();
 
@@ -29,5 +30,27 @@ class AuctionTest {
         assertThat(auction.getCurrentBid()).isEqualTo(520000L);
         assertThat(auction.getCurrentBidderId()).isEqualTo(42L);
         assertThat(auction.getBidCount()).isEqualTo(6);
+        assertThat(auction.getBidSequence()).isEqualTo(6L);
+    }
+
+    @Test
+    @DisplayName("V3 적용 전 sequence가 비어 있어도 기존 bidCount 다음 순서부터 시작한다")
+    void applyBid_beforeMigration_continuesAfterExistingBidCount() {
+        Auction auction = Auction.builder()
+                .auctionId("A-LEGACY")
+                .productId(1L)
+                .sellerId(10L)
+                .startPrice(100000L)
+                .minIncrement(10000L)
+                .currentBid(500000L)
+                .bidCount(5)
+                .bidSequence(null)
+                .endsAt(LocalDateTime.now().plusHours(1))
+                .build();
+
+        auction.applyBid(510000L, 42L);
+
+        assertThat(auction.getBidCount()).isEqualTo(6);
+        assertThat(auction.getBidSequence()).isEqualTo(6L);
     }
 }
