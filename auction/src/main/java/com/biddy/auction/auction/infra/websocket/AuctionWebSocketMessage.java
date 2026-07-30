@@ -2,6 +2,8 @@ package com.biddy.auction.auction.infra.websocket;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.UUID;
+
 /**
  * WebSocket으로 클라이언트에 전송되는 경매 실시간 메시지 DTO
  *
@@ -63,11 +65,20 @@ public record AuctionWebSocketMessage(
          */
         String type,
 
+        /** 중복 제거용 Outbox 이벤트 식별자 (broker BID에서만 사용) */
+        UUID eventId,
+
+        /** 클라이언트의 누락·역순 감지용 경매 입찰 순번 (broker BID에서만 사용) */
+        Long sequence,
+
         /**
          * 현재 최고 입찰가 (BID 타입에서만 사용)
          * 클라이언트 화면의 현재가 표시 업데이트용
          */
         Long currentBid,
+
+        /** 서버가 계산한 다음 최소 입찰가 (broker BID에서만 사용) */
+        Long nextMinimumBid,
 
         /**
          * 누적 입찰 횟수 (BID 타입에서만 사용)
@@ -116,7 +127,23 @@ public record AuctionWebSocketMessage(
      */
     public static AuctionWebSocketMessage bid(Long currentBid, Integer bidCount, Long bidderId) {
         // type: "BID", 입찰 관련 필드만 설정, 나머지는 null
-        return new AuctionWebSocketMessage("BID", currentBid, bidCount, bidderId, null, null);
+        return new AuctionWebSocketMessage(
+                "BID", null, null, currentBid, null, bidCount, bidderId, null, null
+        );
+    }
+
+    /** broker가 전달한 순서 정보가 포함된 입찰 메시지를 생성한다. */
+    public static AuctionWebSocketMessage bid(
+            UUID eventId,
+            Long sequence,
+            Long currentBid,
+            Long nextMinimumBid,
+            Integer bidCount,
+            Long bidderId
+    ) {
+        return new AuctionWebSocketMessage(
+                "BID", eventId, sequence, currentBid, nextMinimumBid, bidCount, bidderId, null, null
+        );
     }
 
     /**
@@ -145,7 +172,9 @@ public record AuctionWebSocketMessage(
      */
     public static AuctionWebSocketMessage ended(Long winnerId, Long finalBid) {
         // type: "ENDED", 종료 관련 필드만 설정, 나머지는 null
-        return new AuctionWebSocketMessage("ENDED", null, null, null, winnerId, finalBid);
+        return new AuctionWebSocketMessage(
+                "ENDED", null, null, null, null, null, null, winnerId, finalBid
+        );
     }
 
     /**
@@ -177,6 +206,8 @@ public record AuctionWebSocketMessage(
      */
     public static AuctionWebSocketMessage unsold() {
         // type: "ENDED", 모든 데이터 필드 null (유찰 표시)
-        return new AuctionWebSocketMessage("ENDED", null, null, null, null, null);
+        return new AuctionWebSocketMessage(
+                "ENDED", null, null, null, null, null, null, null, null
+        );
     }
 }

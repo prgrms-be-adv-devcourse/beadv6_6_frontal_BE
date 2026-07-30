@@ -85,7 +85,7 @@ class AuctionControllerTest {
         void withExistingAuction_returnsDetail() throws Exception {
             AuctionDetailResult result = new AuctionDetailResult(
                     "A-001", TEST_PRODUCT_ID, 10L,
-                    400000L, 20000L, 720000L, 6,
+                    400000L, 20000L, 720000L, 6, 6L,
                     null, LocalDateTime.of(2026, 6, 20, 15, 0),
                     AuctionStatus.LIVE, 88, null, null,
                     new AuctionDetailResult.TopBidderInfo(42L, 720000L),
@@ -99,6 +99,7 @@ class AuctionControllerTest {
                     .andExpect(jsonPath("$.productId").exists())
                     .andExpect(jsonPath("$.startPrice").value(400000))
                     .andExpect(jsonPath("$.currentBid").value(720000))
+                    .andExpect(jsonPath("$.sequence").value(6))
                     .andExpect(jsonPath("$.status").value("LIVE"))
                     .andExpect(jsonPath("$.topBidder.bidderId").value(42));
         }
@@ -118,7 +119,7 @@ class AuctionControllerTest {
         void withNoBids_topBidderIsNull() throws Exception {
             AuctionDetailResult result = new AuctionDetailResult(
                     "A-002", TEST_PRODUCT_ID, 10L,
-                    100000L, 10000L, 0L, 0,
+                    100000L, 10000L, 0L, 0, 0L,
                     null, LocalDateTime.of(2026, 6, 20, 15, 0),
                     AuctionStatus.LIVE, 0, null, null,
                     null, false, null

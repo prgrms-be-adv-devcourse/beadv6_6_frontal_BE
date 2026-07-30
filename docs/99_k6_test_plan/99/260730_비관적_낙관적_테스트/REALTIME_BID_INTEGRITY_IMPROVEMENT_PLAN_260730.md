@@ -677,3 +677,45 @@ bid_client_snapshot_recovery_total
 - 모바일 재연결·화면 복귀·gap 복구가 성공한다.
 - 장애 주입 테스트에서 유령 입찰이 없고 커밋된 이벤트가 최종적으로 복구된다.
 - 기능 플래그 롤백을 한 번 이상 리허설한 후에만 기존 경로를 제거한다.
+
+## 17. 2026-07-31 백엔드 구현 결과와 전환값
+
+이번 단계에서 다음 경로를 소스에 구현했다.
+
+```text
+Bid/Auction/Outbox commit
+  -> Outbox relay (Kafka key = auctionId)
+  -> auction.bid.accepted consumer group
+  -> Redis Lua
+       Hash: auction:realtime:{auctionId}
+       ZSET: auction:realtime:{auctionId}:history (최근 1,000건)
+       Pub/Sub: auction:realtime:{auctionId}:events
+  -> 모든 Auction Pod의 pattern subscriber
+  -> /topic/auctions/{auctionId}
+```
+
+- Lua는 현재 Hash sequence보다 큰 이벤트만 Hash와 ZSET에 반영하고 Pub/Sub을 발행한다.
+- 같은 sequence 재전달과 과거 sequence는 화면에 중복 발행하지 않는다.
+- ZSET score는 DB 확정 sequence이며, ZSET은 승자 결정이나 DB 대체 용도가 아니다.
+- WebSocket BID payload는 `eventId`, `sequence`, `currentBid`, `nextMinimumBid`, `bidCount`, `bidderId`를 전달한다.
+- 경매 상세 REST 응답도 `sequence`를 제공한다. 클라이언트는 이전 sequence 이하를 무시하고 gap이면 상세 API로 최신 snapshot을 다시 조회한다.
+- Redis Pub/Sub 자체는 내구성 큐가 아니다. 연결 중 누락은 REST snapshot으로 복구하고 DB·Outbox·Kafka를 내구성 원본으로 유지한다.
+
+기본 설정은 기존 direct 경로를 유지한다. 운영 전환은 다음 순서를 사용한다.
+
+```text
+# 1. shadow projection: WebSocket은 기존 direct 유지
+BID_REDIS_PROJECTION_ENABLED=true
+BID_WEBSOCKET_SOURCE=direct
+
+# 2. DB currentBid/bidSequence와 Redis Hash를 비교한 뒤 fan-out 전환
+BID_REDIS_PROJECTION_ENABLED=true
+BID_WEBSOCKET_SOURCE=redis
+
+# 즉시 롤백
+BID_WEBSOCKET_SOURCE=direct
+```
+
+백엔드 자동 테스트는 Redis Lua 호출 계약, Kafka 역직렬화·위임, Redis subscriber, direct 중복 차단,
+WebSocket sequence 계약과 경매 상세 REST sequence를 검증한다. 실제 여러 Pod·브라우저·모바일을 이용한 배포 환경 E2E와
+Redis 장애 주입은 운영 전환 전에 별도로 수행한다.

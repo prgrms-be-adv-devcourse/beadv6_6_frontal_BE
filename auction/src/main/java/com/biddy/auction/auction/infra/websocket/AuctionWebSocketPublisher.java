@@ -1,5 +1,7 @@
 package com.biddy.auction.auction.infra.websocket;
 
+import com.biddy.auction.bid.config.BidFeatureProperties;
+import com.biddy.auction.bid.infra.kafka.BidAcceptedEventPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -48,6 +50,7 @@ public class AuctionWebSocketPublisher {
      * 내부적으로 메시지 브로커와 연동하여 구독자에게 전달
      */
     private final SimpMessagingTemplate messagingTemplate;
+    private final BidFeatureProperties bidFeatureProperties;
 
     /**
      * 입찰 발생 메시지 브로드캐스트
@@ -76,6 +79,11 @@ public class AuctionWebSocketPublisher {
      * @param bidderId   최고 입찰자 ID (현재 1등 표시)
      */
     public void publishBid(String auctionId, Long currentBid, Integer bidCount, Long bidderId) {
+        if (bidFeatureProperties.getWebsocketSource() != BidFeatureProperties.WebSocketSource.DIRECT) {
+            log.debug("직접 WebSocket BID 발행 생략 - Redis fan-out 활성화, 경매: {}", auctionId);
+            return;
+        }
+
         // BID 타입 메시지 생성
         // 내부적으로 type 필드를 "BID"로 설정
         AuctionWebSocketMessage message = AuctionWebSocketMessage.bid(currentBid, bidCount, bidderId);
@@ -96,6 +104,23 @@ public class AuctionWebSocketPublisher {
         // 운영 환경에서는 성능을 위해 DEBUG 레벨 비활성화 권장
         log.debug("WebSocket BID 메시지 발행 - 경매: {}, 현재가: {}원, 입찰수: {}",
                 auctionId, currentBid, bidCount);
+    }
+
+    /** Redis Pub/Sub에서 수신한 확정 이벤트를 현재 Pod의 구독자에게 전달한다. */
+    public void publishBidFromBroker(BidAcceptedEventPayload event) {
+        AuctionWebSocketMessage message = AuctionWebSocketMessage.bid(
+                event.eventId(),
+                event.sequence(),
+                event.currentBid(),
+                event.nextMinimumBid(),
+                event.bidCount(),
+                event.bidderId()
+        );
+        String destination = "/topic/auctions/" + event.auctionId();
+        messagingTemplate.convertAndSend(destination, message);
+
+        log.debug("Broker WebSocket BID 발행 - 경매: {}, sequence: {}, eventId: {}",
+                event.auctionId(), event.sequence(), event.eventId());
     }
 
     /**

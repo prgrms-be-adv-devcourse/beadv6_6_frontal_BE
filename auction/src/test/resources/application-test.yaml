@@ -34,3 +34,8 @@ eureka:
 outbox:
   scheduler:
     enabled: false
+
+bid:
+  websocket-source: direct
+  redis-projection:
+    enabled: false

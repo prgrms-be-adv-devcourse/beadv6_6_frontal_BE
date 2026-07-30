@@ -63,7 +63,8 @@ outbox:
     send-timeout-seconds: ${OUTBOX_SEND_TIMEOUT:10}  # Kafka 발행 타임아웃 (초)
 
 # 실시간 입찰 개선 단계별 전환 플래그
-# 기본값은 현재 운영 중인 낙관적 락 + Pod 직접 WebSocket 발행 경로와 동일하다.
+# 기본값은 안전한 단계 전환을 위해 기존 direct 경로를 유지한다.
+# projection 검증 후 BID_REDIS_PROJECTION_ENABLED=true, BID_WEBSOCKET_SOURCE=redis 순으로 전환한다.
 bid:
   execution-mode: ${BID_EXECUTION_MODE:optimistic}
   websocket-source: ${BID_WEBSOCKET_SOURCE:direct}
@@ -71,3 +72,4 @@ bid:
     enabled: ${BID_API_V2_ENABLED:false}
   redis-projection:
     enabled: ${BID_REDIS_PROJECTION_ENABLED:false}
+    consumer-group: ${BID_REDIS_PROJECTION_CONSUMER_GROUP:auction-bid-projection}
