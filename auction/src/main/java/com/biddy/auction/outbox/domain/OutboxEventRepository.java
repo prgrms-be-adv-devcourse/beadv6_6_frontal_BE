@@ -13,6 +13,9 @@ import java.util.List;
  */
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> {
 
+    /** 테스트·감사 조회용 집합체별 이벤트 순서 조회 */
+    List<OutboxEvent> findByAggregateIdOrderByIdAsc(String aggregateId);
+
     /**
      * 지정된 상태의 이벤트를 최대 100개까지 조회한다.
      * 생성 시각 기준 오름차순으로 정렬하여 가장 오래된 이벤트부터 처리한다.

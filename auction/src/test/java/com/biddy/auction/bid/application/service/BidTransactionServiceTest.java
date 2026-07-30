@@ -8,6 +8,7 @@ import com.biddy.auction.bid.application.dto.PlaceBidResult;
 import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
+import com.biddy.auction.bid.infra.kafka.BidAcceptedOutboxWriter;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,9 @@ class BidTransactionServiceTest {
 
     @Mock
     private BidFeatureProperties bidFeatureProperties;
+
+    @Mock
+    private BidAcceptedOutboxWriter bidAcceptedOutboxWriter;
 
     @InjectMocks
     private BidTransactionService transactionService;
@@ -90,6 +94,7 @@ class BidTransactionServiceTest {
         verify(bidRepository).save(bidCaptor.capture());
         assertThat(bidCaptor.getValue().getSequence()).isEqualTo(6L);
         assertThat(bidCaptor.getValue().getRequestId()).isNotNull();
+        verify(bidAcceptedOutboxWriter).save(auction, savedBid);
 
         InOrder order = inOrder(bidRepository, auctionRepository);
         order.verify(auctionRepository).save(auction);
@@ -129,6 +134,31 @@ class BidTransactionServiceTest {
 
         verify(auctionRepository).findByIdForUpdate("A-001");
         verify(auctionRepository, never()).findById("A-001");
+    }
+
+    @Test
+    @DisplayName("Outbox 저장 실패는 성공 결과를 반환하기 전에 전파한다")
+    void executeBidTransaction_outboxFailure_propagates() {
+        PlaceBidCommand command = new PlaceBidCommand("A-001", 42L, 520000L);
+        Bid savedBid = Bid.builder()
+                .bidId(101L)
+                .auctionId("A-001")
+                .bidderId(42L)
+                .amount(520000L)
+                .sequence(6L)
+                .requestId(java.util.UUID.randomUUID())
+                .build();
+        IllegalStateException failure = new IllegalStateException("serialization failed");
+
+        given(auctionRepository.findById("A-001")).willReturn(Optional.of(auction));
+        given(auctionRepository.save(auction)).willReturn(auction);
+        given(bidRepository.save(any(Bid.class))).willReturn(savedBid);
+        given(bidAcceptedOutboxWriter.save(auction, savedBid)).willThrow(failure);
+
+        assertThatThrownBy(() -> transactionService.executeBidTransaction(command))
+                .isSameAs(failure);
+
+        verify(auctionRepository).flush();
     }
 
     @Test

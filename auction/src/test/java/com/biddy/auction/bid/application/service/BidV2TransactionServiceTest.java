@@ -8,6 +8,7 @@ import com.biddy.auction.bid.application.dto.PlaceBidV2Result;
 import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
+import com.biddy.auction.bid.infra.kafka.BidAcceptedOutboxWriter;
 import com.biddy.auction.common.exception.BidConflictException;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
@@ -44,6 +45,9 @@ class BidV2TransactionServiceTest {
 
     @Mock
     private BidFeatureProperties bidFeatureProperties;
+
+    @Mock
+    private BidAcceptedOutboxWriter bidAcceptedOutboxWriter;
 
     @InjectMocks
     private BidV2TransactionService transactionService;
@@ -101,6 +105,7 @@ class BidV2TransactionServiceTest {
         assertThat(bidCaptor.getValue().getAmount()).isEqualTo(510000L);
         assertThat(bidCaptor.getValue().getRequestId()).isEqualTo(requestId);
         assertThat(bidCaptor.getValue().getSequence()).isEqualTo(6L);
+        verify(bidAcceptedOutboxWriter).save(auction, savedBid);
 
         InOrder order = inOrder(auctionRepository, bidRepository);
         order.verify(auctionRepository).save(auction);

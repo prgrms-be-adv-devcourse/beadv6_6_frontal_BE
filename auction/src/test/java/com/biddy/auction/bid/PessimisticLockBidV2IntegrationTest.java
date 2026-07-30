@@ -8,6 +8,9 @@ import com.biddy.auction.bid.application.usecase.BidV2UseCase;
 import com.biddy.auction.bid.domain.repository.BidRepository;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
+import com.biddy.auction.outbox.domain.OutboxEvent;
+import com.biddy.auction.outbox.domain.OutboxEventRepository;
+import com.biddy.auction.outbox.domain.OutboxStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +49,9 @@ class PessimisticLockBidV2IntegrationTest {
 
     @Autowired
     private BidRepository bidRepository;
+
+    @Autowired
+    private OutboxEventRepository outboxEventRepository;
 
     @Test
     @DisplayName("같은 sequence의 동시 v2 입찰은 행 잠금 순서상 한 건만 커밋된다")
@@ -109,10 +115,15 @@ class PessimisticLockBidV2IntegrationTest {
                 auctionId,
                 PageRequest.of(0, requestCount)
         ).getNumberOfElements();
+        List<OutboxEvent> outboxEvents = outboxEventRepository.findByAggregateIdOrderByIdAsc(auctionId);
 
         assertThat(successCount.get()).isEqualTo(1);
         assertThat(staleCount.get()).isEqualTo(requestCount - 1);
         assertThat(storedBidCount).isEqualTo(1);
+        assertThat(outboxEvents).hasSize(1);
+        assertThat(outboxEvents.getFirst().getEventId()).isNotNull();
+        assertThat(outboxEvents.getFirst().getTopic()).isEqualTo("auction.bid.accepted");
+        assertThat(outboxEvents.getFirst().getStatus()).isEqualTo(OutboxStatus.PENDING);
         assertThat(committedAuction.getCurrentBid()).isEqualTo(11000L);
         assertThat(committedAuction.getBidCount()).isEqualTo(1);
         assertThat(committedAuction.currentBidSequence()).isEqualTo(1L);

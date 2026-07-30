@@ -5,6 +5,7 @@ import com.biddy.auction.outbox.domain.OutboxEventRepository;
 import com.biddy.auction.outbox.domain.OutboxStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "outbox.scheduler", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxRelayScheduler {
 
     private final OutboxEventRepository outboxEventRepository;

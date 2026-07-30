@@ -7,6 +7,7 @@ import com.biddy.auction.bid.application.dto.PlaceBidResult;
 import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
+import com.biddy.auction.bid.infra.kafka.BidAcceptedOutboxWriter;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class BidTransactionService {
     private final BidRepository bidRepository;
     private final AuctionRepository auctionRepository;
     private final BidFeatureProperties bidFeatureProperties;
+    private final BidAcceptedOutboxWriter bidAcceptedOutboxWriter;
 
     /**
      * 입찰 저장과 경매 갱신을 하나의 새 트랜잭션으로 실행한다.
@@ -66,7 +68,9 @@ public class BidTransactionService {
                 .requestId(UUID.randomUUID())
                 .build());
 
-        // Bid INSERT까지 같은 트랜잭션에서 확인한다. 이후 실패하면 앞선 Auction UPDATE도 롤백된다.
+        bidAcceptedOutboxWriter.save(auction, savedBid);
+
+        // Bid INSERT와 Outbox INSERT까지 확인한다. 이후 실패하면 앞선 Auction UPDATE도 롤백된다.
         auctionRepository.flush();
 
         log.debug("입찰 트랜잭션 flush 완료 - 경매: {}, 입찰ID: {}, sequence: {}, 금액: {}원",

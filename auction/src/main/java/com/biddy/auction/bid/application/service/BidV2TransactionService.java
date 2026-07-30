@@ -7,6 +7,7 @@ import com.biddy.auction.bid.application.dto.PlaceBidV2Result;
 import com.biddy.auction.bid.config.BidFeatureProperties;
 import com.biddy.auction.bid.domain.model.Bid;
 import com.biddy.auction.bid.domain.repository.BidRepository;
+import com.biddy.auction.bid.infra.kafka.BidAcceptedOutboxWriter;
 import com.biddy.auction.common.exception.BidConflictException;
 import com.biddy.auction.common.exception.BusinessException;
 import com.biddy.auction.common.exception.ErrorCode;
@@ -29,6 +30,7 @@ public class BidV2TransactionService {
     private final BidRepository bidRepository;
     private final AuctionRepository auctionRepository;
     private final BidFeatureProperties bidFeatureProperties;
+    private final BidAcceptedOutboxWriter bidAcceptedOutboxWriter;
 
     @Transactional(
             propagation = Propagation.REQUIRES_NEW,
@@ -83,6 +85,7 @@ public class BidV2TransactionService {
                 .sequence(auction.currentBidSequence())
                 .requestId(command.requestId())
                 .build());
+        bidAcceptedOutboxWriter.save(auction, savedBid);
         auctionRepository.flush();
 
         long followingMinimumBid = calculateNextAmount(nextMinimumBid, auction.getMinIncrement());

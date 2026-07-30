@@ -9,12 +9,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Index;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Outbox 패턴 이벤트 엔티티.
@@ -30,7 +32,10 @@ import java.time.LocalDateTime;
  * </ul></p>
  */
 @Entity
-@Table(name = "outbox_events")
+@Table(name = "outbox_events", indexes = {
+        @Index(name = "uk_outbox_event_id", columnList = "event_id", unique = true),
+        @Index(name = "idx_outbox_status_id", columnList = "status, id")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OutboxEvent {
@@ -38,6 +43,10 @@ public class OutboxEvent {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /** 소비자가 중복 이벤트를 제거할 때 사용하는 전역 이벤트 ID */
+    @Column(name = "event_id", updatable = false)
+    private UUID eventId;
 
     /** 집합체 타입 (예: Auction, Bid) */
     @Column(nullable = false, length = 50)
@@ -79,7 +88,8 @@ public class OutboxEvent {
     private String lastError;
 
     @Builder
-    public OutboxEvent(String aggregateType, String aggregateId, String topic, String payload) {
+    public OutboxEvent(UUID eventId, String aggregateType, String aggregateId, String topic, String payload) {
+        this.eventId = eventId == null ? UUID.randomUUID() : eventId;
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
         this.topic = topic;
@@ -117,6 +127,9 @@ public class OutboxEvent {
 
     @PrePersist
     void prePersist() {
+        if (this.eventId == null) {
+            this.eventId = UUID.randomUUID();
+        }
         this.createdAt = LocalDateTime.now();
     }
 
