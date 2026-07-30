@@ -34,7 +34,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "outbox_events", indexes = {
         @Index(name = "uk_outbox_event_id", columnList = "event_id", unique = true),
-        @Index(name = "idx_outbox_status_id", columnList = "status, id")
+        @Index(name = "idx_outbox_status_id", columnList = "status, id"),
+        @Index(name = "idx_outbox_aggregate_status_id", columnList = "aggregate_id, status, id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

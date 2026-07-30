@@ -31,6 +31,9 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
 
 eureka:
   client:
@@ -53,7 +56,9 @@ management:
 outbox:
   scheduler:
     enabled: ${OUTBOX_SCHEDULER_ENABLED:true}
-    delay: ${OUTBOX_SCHEDULER_DELAY:5000}  # 스케줄러 실행 주기 (ms)
+    delay: ${OUTBOX_SCHEDULER_DELAY:200}  # 실시간 projection 지연을 줄이기 위한 폴링 주기 (ms)
+    batch-size: ${OUTBOX_BATCH_SIZE:100}
+    max-batches-per-run: ${OUTBOX_MAX_BATCHES_PER_RUN:10}
     max-retry-count: ${OUTBOX_MAX_RETRY_COUNT:5}  # 최대 재시도 횟수
     send-timeout-seconds: ${OUTBOX_SEND_TIMEOUT:10}  # Kafka 발행 타임아웃 (초)
 

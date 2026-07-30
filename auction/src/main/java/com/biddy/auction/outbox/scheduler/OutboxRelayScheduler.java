@@ -1,19 +1,13 @@
 package com.biddy.auction.outbox.scheduler;
 
-import com.biddy.auction.outbox.domain.OutboxEvent;
-import com.biddy.auction.outbox.domain.OutboxEventRepository;
-import com.biddy.auction.outbox.domain.OutboxStatus;
+import com.biddy.auction.outbox.application.OutboxRelayBatchProcessor;
+import com.biddy.auction.outbox.application.OutboxRelayBatchResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Outbox 이벤트를 Kafka로 발행하는 스케줄러.
@@ -27,42 +21,30 @@ import java.util.concurrent.TimeUnit;
 @ConditionalOnProperty(prefix = "outbox.scheduler", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxRelayScheduler {
 
-    private final OutboxEventRepository outboxEventRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final OutboxRelayBatchProcessor batchProcessor;
 
-    @Value("${outbox.scheduler.max-retry-count:5}")
-    private int maxRetryCount;
-
-    @Value("${outbox.scheduler.send-timeout-seconds:10}")
-    private long sendTimeoutSeconds;
+    @Value("${outbox.scheduler.max-batches-per-run:10}")
+    private int maxBatchesPerRun;
 
     /**
      * 주기적으로 PENDING 상태의 Outbox 이벤트를 Kafka로 발행한다.
-     * 기본 5초마다 실행되며, application.yml에서 설정 가능하다.
+     * 기본 200ms마다 실행되며, application.yml에서 설정 가능하다.
      */
-    @Scheduled(fixedDelayString = "${outbox.scheduler.delay:5000}")
-    @Transactional
+    @Scheduled(fixedDelayString = "${outbox.scheduler.delay:200}")
     public void relayOutboxEvents() {
-        List<OutboxEvent> pendingEvents = outboxEventRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxStatus.PENDING);
+        int totalProcessed = 0;
 
-        if (pendingEvents.isEmpty()) {
-            return;
+        for (int batch = 0; batch < maxBatchesPerRun; batch++) {
+            OutboxRelayBatchResult result = batchProcessor.relayBatch();
+            totalProcessed += result.processedCount();
+
+            if (result.claimedCount() == 0 || result.failedCount() > 0) {
+                break;
+            }
         }
 
-        log.info("Relaying {} pending outbox events to Kafka...", pendingEvents.size());
-
-        for (OutboxEvent event : pendingEvents) {
-            try {
-                kafkaTemplate.send(event.getTopic(), event.getAggregateId(), event.getPayload())
-                        .get(sendTimeoutSeconds, TimeUnit.SECONDS);
-                event.markAsProcessed();
-                outboxEventRepository.save(event);
-                log.info("Successfully relayed outbox event id: {} to topic {}", event.getId(), event.getTopic());
-            } catch (Exception e) {
-                log.error("Unexpected error relaying outbox event id: {}", event.getId(), e);
-                event.markAsFailed(e, maxRetryCount);
-                outboxEventRepository.save(event);
-            }
+        if (totalProcessed > 0) {
+            log.info("Outbox relay 완료 - processedCount: {}", totalProcessed);
         }
     }
 }
