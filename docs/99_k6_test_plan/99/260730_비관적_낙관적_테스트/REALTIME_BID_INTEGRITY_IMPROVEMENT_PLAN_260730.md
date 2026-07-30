@@ -91,6 +91,12 @@ PC·모바일 sequence 검증 후 화면 반영
 - Kafka 장애가 입찰 접수 장애로 즉시 확대된다.
 - 엄격한 Gateway 도착 FIFO가 정식 요구사항으로 확정되거나 단일 경매의 DB lock wait가 운영 임계를 넘을 때 다음 단계로 검토한다.
 
+### 3.3 1순위 입찰자의 정의
+
+- WebSocket에 먼저 연결한 사용자는 입찰 우선권을 갖지 않는다.
+- v2 구조에서 1순위는 해당 Auction 행 락을 획득한 후 `observedSequence`와 금액 상한 검증을 처음 통과해 커밋한 요청이다.
+- 여러 Pod에 도착한 네트워크 요청의 엄격한 도착 시간 FIFO는 보장하지 않는다. 이 보장이 필수가 되면 Kafka 명령 큐의 offset을 순서 원본으로 사용하는 전면 개편으로 전환한다.
+
 ## 4. 입찰 API 계약
 
 ### 4.1 요청
@@ -121,7 +127,7 @@ X-Member-Id: 42
 nextAmount = auction.currentBid + auction.minIncrement
 
 requestId가 기존 성공 요청과 같음
-  -> 기존 성공 결과를 반환하고 재처리하지 않음
+  -> 200 OK, 기존 성공 결과와 idempotentReplay=true를 반환하고 재처리하지 않음
 
 observedSequence != auction.bidSequence
   -> 409 BID_STALE_STATE
@@ -145,7 +151,8 @@ nextAmount > maxAcceptableAmount
   "amount": 111000,
   "currentBid": 111000,
   "nextMinimumBid": 111500,
-  "bidCount": 215
+  "bidCount": 215,
+  "idempotentReplay": false
 }
 ```
 
@@ -363,3 +370,310 @@ Auction.bidSequence
 - Redis 중복 이벤트와 재시작이 ZSET 원소, Hash sequence, WebSocket 화면을 중복 증가시키지 않는다.
 - 모바일 잠금·백그라운드 후 복귀하면 REST snapshot으로 최신 가격을 표시한다.
 
+## 11. 단계별 구현 계획
+
+각 단계는 독립 커밋과 독립 배포로 관리한다. 앞 단계의 정합성 검증이 통과하지 않으면 다음 단계로 진행하지 않는다.
+
+### Phase 0. 기준선과 기능 플래그
+
+목적: 동작을 바꾸지 않고 전환과 롤백 스위치를 먼저 준비한다.
+
+작업:
+
+- 배포 image SHA, Auction replica 수, Kafka·Redis·DB 상태를 기록한다.
+- 기존 낙관적 락 k6 결과를 회귀 기준선으로 고정한다.
+- `bid.execution-mode=optimistic|pessimistic`를 정의하고 기본값은 `optimistic`으로 둔다.
+- `bid.websocket-source=direct|redis`를 정의하고 기본값은 `direct`로 둔다.
+- `bid.api-v2.enabled=false`, `bid.redis-projection.enabled=false`를 기본값으로 둔다.
+
+검증:
+
+- 모든 플래그가 기본값일 때 기존 75개 Auction 회귀 테스트와 k6 결과가 변하지 않는다.
+
+롤백:
+
+- 코드 롤백 없이 모든 플래그를 기본값으로 복구한다.
+
+### Phase 1. 모바일 화면 즉시 복구
+
+목적: 백엔드 이벤트 경로 전환 전에 현재 모바일 stale 화면을 우선 완화한다.
+
+작업:
+
+- STOMP `onWebSocketClose`, `onStompError`에서 연결 상태를 `OFF`로 변경한다.
+- `onConnect`에서 topic을 재구독한 뒤 REST 상세를 재조회한다.
+- `visibilitychange` 후 화면이 다시 보이면 REST 상세를 재조회한다.
+- 임시 보호로 LIVE 상태에서만 낮은 빈도의 polling fallback을 적용하고 완전 전환 후 제거 여부를 재평가한다.
+
+검증:
+
+- 모바일 잠금, 백그라운드, 네트워크 전환 후 최신 DB 가격으로 복구한다.
+- 소켓이 끊겼는데 `LIVE` 연결 표시가 남지 않는다.
+
+롤백:
+
+- 재연결 후 REST 조회와 polling을 각각 독립적으로 비활성화한다.
+
+### Phase 2. 후방 호환 DB 스키마
+
+목적: 기존 소스가 계속 동작하는 additive migration을 먼저 배포한다.
+
+작업:
+
+- Auction에 `bid_sequence BIGINT NOT NULL DEFAULT 0`을 추가한다.
+- 기존 Auction의 `bid_sequence`는 `bid_count`로 백필한다.
+- Bid에 우선 nullable `sequence`, `request_id` 컬럼을 추가한다.
+- 기존 Bid는 `(bid_at, bid_id)` 순으로 경매별 `ROW_NUMBER()`를 계산해 `sequence`를 백필한다.
+- 백필 정합성 검증 후 `sequence NOT NULL`과 `UNIQUE (auction_id, sequence)`를 적용한다.
+- 기존 입찰은 `request_id` 값이 없으므로 `UNIQUE (bidder_id, request_id) WHERE request_id IS NOT NULL` 부분 인덱스를 적용한다.
+- Outbox에 `event_id UUID`를 추가하고 신규 이벤트에만 필수로 생성한다.
+- 운영 스키마는 `ddl-auto=update`에만 의존하지 않고 검토된 migration SQL로 적용한다.
+
+검증:
+
+```text
+Auction.bidSequence = Auction.bidCount
+Auction.bidSequence = MAX(Bid.sequence)
+경매별 Bid.sequence 중복 = 0
+```
+
+롤백:
+
+- 신규 컬럼은 기존 코드가 참조하지 않으므로 스키마에 남기고 애플리케이션만 롤백한다.
+- 즉시 컬럼 DROP은 수행하지 않는다.
+
+### Phase 3. 멱등성과 서버 가격 계약
+
+목적: 기존 API를 깨뜨리지 않고 신규 입찰 계약을 도입한다.
+
+작업:
+
+- 기존 `amount` API는 전환 기간에 유지한다.
+- 신규 v2 API 또는 명시적 버전 헤더로 `requestId`, `observedSequence`, `maxAcceptableAmount`를 받는다.
+- 성공한 중복 `requestId`는 `200 OK`, `idempotentReplay=true`와 기존 Bid 결과를 반환하고 새 Bid를 생성하지 않는다.
+- `BID_STALE_STATE`, `BID_PRICE_CHANGED`는 최신 sequence와 가격을 포함한 `409`를 반환한다.
+
+검증:
+
+- 동일 사용자가 동일 `requestId`를 여러 번 전송해도 Bid는 한 개다.
+- v1 클라이언트와 v2 클라이언트가 전환 기간에 모두 정상 동작한다.
+
+롤백:
+
+- `bid.api-v2.enabled=false`로 v2 진입을 차단하고 v1 계약으로 복구한다.
+
+### Phase 4. 경매 행 직렬화
+
+목적: 한 경매의 다음 가격 계산과 순서 부여를 하나의 DB 임계 구역으로 직렬화한다.
+
+작업:
+
+- `AuctionJpaRepository.findByIdForUpdate()`에 `PESSIMISTIC_WRITE`를 적용한다.
+- v2 실행 경로에서만 `SELECT FOR UPDATE`를 사용한다.
+- 락 획득 후 최신 상태에서 중복 요청, 경매 상태, sequence, 금액 상한을 검증한다.
+- 신규 경로에서는 낙관적 재시도를 사용하지 않는다.
+- DB lock timeout을 무한으로 두지 않고 초과 시 재시도 가능한 명시적 오류로 변환한다.
+
+검증:
+
+- 동일 sequence와 상한으로 동시 요청한 경우 한 건만 성공한다.
+- 서로 다른 경매 A/B는 병렬로 처리된다.
+- deadlock, lock timeout, Hikari pending을 함께 측정한다.
+
+롤백:
+
+- `bid.execution-mode=optimistic`으로 기존 `@Version` 경로를 즉시 복구한다.
+- `version` 컬럼과 낙관적 코드는 안정화 기간에 제거하지 않는다.
+
+### Phase 5. Bid Transactional Outbox와 Kafka
+
+목적: DB에 없는 입찰 이벤트와 DB에는 있지만 영원히 발행되지 않는 입찰 이벤트를 막는다.
+
+작업:
+
+- Bid와 Auction을 저장하는 트랜잭션에서 `BID_ACCEPTED` Outbox를 같이 INSERT한다.
+- relay 조회는 `(status, id)` 순서로 정렬하고 여러 Pod가 대기하지 않도록 `SKIP LOCKED` 배치 claim을 적용한다.
+- Kafka `key=auctionId`를 고정하고 producer acknowledgment 성공 후 Outbox를 `PROCESSED`로 변경한다.
+- 5초 polling을 실시간 목표에 맞는 짧은 주기로 조정하되 DB 쿼리율과 빈 배치 비율을 함께 측정한다.
+- 운영 규모가 커지면 polling을 Debezium CDC로 대체하는 후속 개선을 검토한다.
+
+검증:
+
+- DB 커밋 직후 Pod 종료, Kafka 일시 장애, relay 타임아웃에서도 Outbox가 유실되지 않는다.
+- 동일 경매의 Kafka 이벤트를 eventId로 중복 제거하면 sequence가 연속적이다.
+
+롤백:
+
+- Outbox 생성은 유지하고 relay를 중단한다. 복구 후 PENDING 이벤트를 재발행할 수 있다.
+- 입찰 DB 커밋과 성공 응답은 이벤트 relay 장애로 되돌리지 않는다.
+
+### Phase 6. Redis Projection과 다중 Pod 팬아웃
+
+목적: 모든 Auction Pod에 연결된 소켓 구독자가 동일 입찰 결과를 받도록 한다.
+
+작업:
+
+- Kafka projection consumer는 하나의 consumer group으로 이벤트를 한 번 Projection한다.
+- Lua script로 sequence 검증, `ZADD NX`, `HSET`, `PUBLISH`를 원자적으로 수행한다.
+- Lua 성공 후에만 Kafka offset을 acknowledgment한다.
+- 모든 Auction Pod의 Redis subscriber가 Pub/Sub 이벤트를 로컬 `SimpMessagingTemplate`로 전달한다.
+- Redis gap은 metric으로 기록하고 DB snapshot 또는 Kafka replay로 해당 경매 Projection을 재구축한다.
+
+검증:
+
+- 동일 Kafka 이벤트를 두 번 입력해도 ZSET cardinality와 Hash sequence는 한 번만 증가한다.
+- Redis를 비운 뒤 재구축하면 DB currentBid, bidCount, bidSequence와 일치한다.
+- Auction Pod 3개에 각각 연결된 구독자가 같은 eventId와 sequence를 받는다.
+
+롤백:
+
+- `bid.redis-projection.enabled=false`, `bid.websocket-source=direct`로 복구한다.
+- Redis ZSET과 Hash는 Projection이므로 삭제 대신 TTL 만료 또는 후속 재구축 대상으로 둔다.
+
+### Phase 7. WebSocket 경로 전환
+
+목적: Pod 로컬 직접 발행을 Redis 팬아웃 경로로 전환한다.
+
+작업:
+
+- 먼저 Redis 경로를 shadow mode로 실행해 direct 이벤트와 eventId, sequence, 가격을 비교한다.
+- 비교 통과 후 `bid.websocket-source=redis`로 전환한다.
+- 전환 중 두 경로를 동시 화면 발행으로 사용하지 않는다. 불가피한 경우는 같은 eventId로 클라이언트가 중복 제거해야 한다.
+- 안정화 후 `BidService.publishCommittedBid()` 직접 경로를 제거한다.
+
+검증:
+
+- PC 입찰 직후 모바일이 새로고침 없이 같은 sequence와 가격을 표시한다.
+- 소켓 전달 p95, p99와 sequence gap 횟수를 기록한다.
+
+롤백:
+
+- `bid.websocket-source=direct`로 즉시 복귀하고 클라이언트 REST 복구 경로를 유지한다.
+
+### Phase 8. 정리와 운영 기준 확정
+
+- v2 사용률과 구버전 호출을 확인한 후 v1 `amount` API 제거 일정을 잡는다.
+- 비관적 경로 안정화 전에 `@Version`과 낙관적 복구 코드를 삭제하지 않는다.
+- WebSocket direct 경로는 안정화 기간 이후 제거한다.
+- Redis TTL, Outbox 보관 기간, Kafka retention을 경매 종료 후 재접속·감사 기간에 맞게 확정한다.
+- 플래그를 제거하기 전 롤백 불가 승인을 별도로 받는다.
+
+## 12. 커밋 체크포인트
+
+구현 시 다음 범위로 커밋을 나눈다.
+
+1. `test(auction): 실시간 입찰 기준선 테스트 추가`
+2. `feat(auction): 입찰 전환 기능 플래그 추가`
+3. `feat(auction): 입찰 sequence와 멱등성 스키마 추가`
+4. `feat(auction): 서버 계산 입찰 API v2 추가`
+5. `feat(auction): 경매 행 비관적 직렬화 추가`
+6. `feat(auction): 입찰 결과 outbox 저장`
+7. `fix(auction): outbox relay 순서와 다중 pod claim 보장`
+8. `feat(auction): Redis 입찰 projection 추가`
+9. `feat(auction): Redis 기반 WebSocket 팬아웃 추가`
+10. `feat(frontend): 경매 실시간 sequence 복구 추가`
+11. `test(auction): 입찰 장애 복구와 다중 pod 전달 검증`
+12. `refactor(auction): 기존 direct WebSocket 경로 제거`
+
+각 커밋은 코드와 해당 테스트를 함께 포함하고, 다음 커밋 전에 독립 회귀가 가능해야 한다.
+
+## 13. 테스트 계획
+
+### 13.1 단위 테스트
+
+- nextAmount 계산
+- observedSequence 일치·불일치
+- maxAcceptableAmount 경계값
+- 중복 requestId의 기존 결과 반환
+- Redis Lua의 정상·중복·역순·gap 처리
+- WebSocket client의 중복 무시·gap REST 복구
+
+### 13.2 PostgreSQL 통합 테스트
+
+- 동일 경매에 동시 요청하여 한 순서에 한 건만 성공하는지 검증한다.
+- 다른 경매 A/B는 동시 성공할 수 있는지 검증한다.
+- 중복 requestId, stale sequence, 종료 경매, 자기 입찰이 행과 카운트를 변경하지 않는다.
+- 성공 건마다 Bid, Auction, Outbox가 모두 있고 하나라도 없으면 실패다.
+
+### 13.3 이벤트·Redis 통합 테스트
+
+- Outbox PENDING을 Kafka에 전달하고 acknowledgment 후 PROCESSED가 되는지 검증한다.
+- 동일 eventId를 재전달해도 ZSET과 Hash가 중복 증가하지 않는다.
+- sequence gap을 주입하면 Projection이 임의로 건너뛰지 않고 복구 경로로 진입한다.
+- Redis 재시작 후 DB와 동일한 상태로 재구축할 수 있다.
+
+### 13.4 다중 Pod WebSocket 테스트
+
+```text
+Auction Pod 1: PC subscriber
+Auction Pod 2: mobile subscriber
+Auction Pod 3: bid HTTP handler
+```
+
+- 모든 구독자가 같은 eventId, sequence, currentBid를 받는다.
+- 한 Pod를 종료하고 재연결해도 REST snapshot으로 최신 상태를 회복한다.
+- 이벤트 수신 지연은 `receivedAt - committedAt`로 측정한다.
+
+### 13.5 장애 주입
+
+- DB 커밋 후 Kafka 발행 전 Pod 종료
+- Kafka 일시 중단과 복구
+- Kafka acknowledgment 후 Outbox 상태 변경 전 Pod 종료
+- Redis Lua 성공 후 Kafka acknowledgment 전 consumer 종료
+- Redis Pub/Sub 누락
+- 모바일 소켓 종료·재연결
+
+모든 장애에서 DB 불변식은 유지되고, 중복은 eventId로 제거되며, 누락은 sequence gap과 snapshot으로 복구되어야 한다.
+
+## 14. 관측 지표와 중단 조건
+
+### 14.1 필수 지표
+
+```text
+bid_accept_total
+bid_reject_stale_total
+bid_idempotent_replay_total
+bid_db_lock_wait_seconds
+bid_db_lock_timeout_total
+bid_outbox_pending_total
+bid_outbox_oldest_pending_seconds
+bid_outbox_publish_fail_total
+bid_kafka_consumer_lag
+bid_redis_projection_gap_total
+bid_redis_projection_duplicate_total
+bid_websocket_delivery_seconds
+bid_client_sequence_gap_total
+bid_client_snapshot_recovery_total
+```
+
+### 14.2 즉시 중단
+
+- `201 성공 수 != Bid 행 증가 != bidCount 증가 != Outbox 행 증가`
+- Auction.currentBid와 최대 sequence Bid.amount 불일치
+- 중복 requestId로 신규 Bid 생성
+- deadlock, DB connection timeout, Pod restart/OOMKilled
+- Outbox PENDING이 계속 증가하고 복구되지 않음
+- 클라이언트 sequence gap이 REST snapshot 후에도 해소되지 않음
+
+## 15. 롤아웃과 롤백 매트릭스
+
+| 장애 지점 | 우선 대응 | DB 처리 | 복구 |
+|---|---|---|---|
+| v2 API 오류 | `bid.api-v2.enabled=false` | 기존 v1 유지 | v2 코드 수정 후 재활성 |
+| 비관적 lock wait 증가 | `bid.execution-mode=optimistic` | 기존 `@Version` 복귀 | lock timeout·풀 분석 |
+| Outbox relay 장애 | relay 중단 | 입찰 커밋 유지 | PENDING 재발행 |
+| Redis Projection 오류 | projection 비활성 | DB 입찰 커밋 유지 | DB/Kafka로 재구축 |
+| Redis Pub/Sub 누락 | direct 경로 임시 복귀 | 영향 없음 | 클라이언트 snapshot |
+| WebSocket 전달 오류 | REST fallback 강화 | 영향 없음 | sequence gap 해소 |
+
+스키마는 expand-contract 방식으로 전환한다. 신규 컬럼과 인덱스는 전환 안정화 전에 제거하지 않으며, destructive migration은 독립 승인 없이 실행하지 않는다.
+
+## 16. 최종 전환 완료 조건
+
+- 신규 API와 클라이언트가 성공 입찰에 멱등적으로 동작한다.
+- 비관적 락 경로의 정합성, lock wait, throughput이 운영 기준을 통과한다.
+- Bid·Auction·Outbox·Kafka·Redis의 경매별 sequence가 일치한다.
+- Auction Pod 3개의 모든 소켓 구독자가 동일 이벤트를 받는다.
+- 모바일 재연결·화면 복귀·gap 복구가 성공한다.
+- 장애 주입 테스트에서 유령 입찰이 없고 커밋된 이벤트가 최종적으로 복구된다.
+- 기능 플래그 롤백을 한 번 이상 리허설한 후에만 기존 경로를 제거한다.
